@@ -51,6 +51,9 @@ function cardPower(c, trump, leadSuit) {
   const base = rankOrder[c.r] ?? 0;
   return (isTrump ? 100 : 50) + base;
 }
+function isPartner(a, b) {
+  return a % 2 === b % 2;
+}
 
 function dealHand() {
   const deck = shuffle(makeDeck());
@@ -137,7 +140,7 @@ function shouldGoAlone_STRICT(hand, trump, seatIsDealer, upcard, orderedUpRound1
 }
 
 
-function choosePlayCardAI(hand, trump, trick) {
+function choosePlayCardAI(hand, trump, trick, seat, inactivePlayer) {
   const leadSuit = trick.length ? effectiveSuit(trick[0].card, trump) : null;
   const legal = legalCards(hand, trump, leadSuit);
 
@@ -167,7 +170,48 @@ function choosePlayCardAI(hand, trump, trick) {
     }
     return pick;
   }
+// --- RULE: If partner is already winning and you are LAST to act, do NOT waste trump.
+// Dump lowest non-trump if possible; otherwise dump lowest legal.
+if (leadSuit) {
+  const targetCount = inactivePlayer === null ? 4 : 3;
+  const isLastToPlay = trick.length === targetCount - 1;
 
+  if (isLastToPlay) {
+    // determine current winning seat + winning card
+    let bestSeat = trick[0].player;
+    let bestCard = trick[0].card;
+    let bestPow = cardPower(bestCard, trump, leadSuit);
+
+    for (let i = 1; i < trick.length; i++) {
+      const pow = cardPower(trick[i].card, trump, leadSuit);
+      if (pow > bestPow) {
+        bestPow = pow;
+        bestSeat = trick[i].player;
+        bestCard = trick[i].card;
+      }
+    }
+
+    // if partner is winning WITHOUT trump, don't trump it
+    const partnerWinning = isPartner(bestSeat, seat);
+    const partnerWinningIsTrump = effectiveSuit(bestCard, trump) === trump;
+
+    if (partnerWinning && !partnerWinningIsTrump) {
+      const nonTrumpLegal = legal.filter((c) => effectiveSuit(c, trump) !== trump);
+
+      // pick lowest non-trump legal if possible
+      const pool = nonTrumpLegal.length ? nonTrumpLegal : legal;
+
+      let pick = pool[0];
+      let best = Infinity;
+      for (const c of pool) {
+        const p = cardPower(c, trump, leadSuit);
+        // if the pool is non-trump-only, this is just "lowest"; if not, still dumps lowest
+        if (p < best) (best = p), (pick = c);
+      }
+      return pick;
+    }
+  }
+}
   // follow: win if cheap; else dump
   const lead = leadSuit;
   let currentWinningPow = -1;
@@ -696,11 +740,11 @@ setCooldown();
       return;
     }
 
-    if (phase === "playing") {
-      const hand = hands[turn];
-      const c = choosePlayCardAI(hand, trump, trick);
-      playCard(turn, c);
-    }
+   if (phase === "playing") {
+  const hand = hands[turn];
+  const c = choosePlayCardAI(hand, trump, trick, turn, inactivePlayer);
+  playCard(turn, c);
+}
   }
 
   useEffect(() => {
