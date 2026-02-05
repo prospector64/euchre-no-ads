@@ -439,3 +439,44 @@ body{
 }
 .modalBtns{display:flex; gap:10px; justify-content:flex-end; margin-top:12px}
 .smallPrint{margin-top:10px; font-size:12px; color:rgba(255,255,255,.72); line-height:1.35}
+.seatBadge{
+  display:inline-block;
+  margin-left:8px;
+  padding:4px 8px;
+  border-radius:999px;
+  font-weight:1000;
+  font-size:12px;
+  background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.22);
+  color:rgba(255,255,255,.92);
+}
+.winTitle{
+  font-size:22px;
+  font-weight:1000;
+  margin-bottom:10px;
+}
+.winScore{
+  font-size:16px;
+  color:rgba(255,255,255,.88);
+  margin-bottom:10px;
+}
+.trumpChip{
+  width:34px;
+  height:34px;
+  font-size:20px;
+  border-radius:999px;
+  font-weight:1000;
+}
+
+.chipRed{
+  background:rgba(255,255,255,.92);
+  color:#d12b2b;
+  border:1px solid rgba(0,0,0,.18);
+}
+
+.chipBlack{
+  background:rgba(255,255,255,.92);
+  color:#141414;
+  border:1px solid rgba(0,0,0,.18);
+}
+
