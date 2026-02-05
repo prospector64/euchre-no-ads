@@ -637,9 +637,29 @@ setCooldown();
 
     logBid(`${playerName(caller)} orders up ${t}${goAlone ? " (ALONE)" : ""}. Trump is ${t}.`);
 
-    setPendingDealerPickup(true);
-    setPhase("dealer_discard");
-    setTurn(dealer);
+    // If maker goes alone and the dealer is the sitting-out partner,
+// skip dealer pickup/discard entirely.
+const partnerSeat = (typeof partnerOf === "function")
+  ? partnerOf(caller)
+  : (caller + 2) % 4;
+
+const dealerIsSittingOut = goAlone && partnerSeat === dealer;
+
+if (dealerIsSittingOut) {
+  setPendingDealerPickup(false);
+  setPhase("playing");
+  setForcedDealerPick(false);
+  setLogOpen(false);
+
+  const firstLead = normalizeTurnMaybe((dealer + 1) % 4);
+  setTurn(firstLead);
+
+  logBid(`Dealer (${playerName(dealer)}) sits out — skipping pickup/discard.`);
+} else {
+  setPendingDealerPickup(true);
+  setPhase("dealer_discard");
+  setTurn(dealer);
+}
 
     setDeal((prev) => {
       const nh = prev.hands.map((h, i) => (i === 0 ? sortHandForTrump(h, t) : h));
