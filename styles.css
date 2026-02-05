@@ -8,6 +8,7 @@
   --panel2:rgba(0,0,0,.35);
   --stroke:rgba(255,255,255,.14);
   --shadow:0 18px 40px rgba(0,0,0,.35);
+  --yellow:#ffd54a;
 }
 
 *{box-sizing:border-box}
@@ -66,11 +67,11 @@ body{
 }
 .smallInfo b{color:var(--text)}
 
-/* TABLE GRID LANES (prevents overlap) */
+/* TABLE GRID (tight for iPhone) */
 .tableGrid{
   margin:6px auto 0 auto;
   width:min(980px, 100%);
-  height:min(760px, calc(100vh - 86px));
+  height: calc(100vh - 86px);
   background:radial-gradient(1200px 700px at 50% 40%, var(--felt1), var(--felt2) 70%, #032b24);
   border:1px solid var(--stroke);
   border-radius:18px;
@@ -78,8 +79,10 @@ body{
   overflow:hidden;
 
   display:grid;
-  grid-template-columns: 92px 1fr 92px;
-  grid-template-rows: 1fr;
+  grid-template-columns: 86px 1fr 86px;
+}
+@media (max-width: 390px){
+  .tableGrid{ grid-template-columns: 78px 1fr 78px; }
 }
 
 .lane{position:relative}
@@ -87,8 +90,8 @@ body{
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:10px;
-  padding-top:18px;
+  justify-content:flex-start;
+  padding-top:12px;
 }
 .centerLane{
   display:grid;
@@ -97,53 +100,91 @@ body{
   gap: 10px;
 }
 
-/* Name pills */
-.namePill{
+/* Seat headers (name + chips + stars) */
+.seatHeader{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  margin-bottom:8px;
+}
+.seatHeader.horizontal{
+  width:100%;
+}
+.seatHeader.vertical{
+  width:72px;
+}
+.nameRow{
+  display:flex;
+  align-items:center;
+  gap:8px;
   background:rgba(255,255,255,.10);
   border:1px solid var(--stroke);
   border-radius:18px;
-  padding:10px 16px;
+  padding:10px 14px;
   font-weight:950;
   box-shadow:var(--shadow);
-  text-align:center;
-  min-width:180px;
 }
-.verticalName{
+.seatName{white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis}
+
+.verticalText{
   writing-mode:vertical-rl;
   transform:rotate(180deg);
-  background:rgba(255,255,255,.10);
-  border:1px solid var(--stroke);
-  border-radius:18px;
   padding:14px 10px;
-  font-weight:950;
-  box-shadow:var(--shadow);
+  gap:10px;
 }
 
-/* Side stacks */
+/* chips */
+.chip{
+  display:inline-grid;
+  place-items:center;
+  width:22px; height:22px;
+  border-radius:999px;
+  font-weight:1000;
+  font-size:13px;
+  border:1px solid rgba(255,255,255,.22);
+  box-shadow: 0 10px 18px rgba(0,0,0,.25);
+}
+.dealerChip{ background: rgba(255,193,7,.22); color: var(--yellow); }
+.trumpChip{ background: rgba(93,214,255,.18); color: rgba(255,255,255,.92); }
+
+/* Stars (per-player) */
+.stars{
+  display:flex;
+  gap:4px;
+  justify-content:center;
+  align-items:center;
+}
+.star{
+  font-size:14px;
+  opacity:.25;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,.25));
+}
+.star.on{
+  opacity:1;
+  color: var(--yellow);
+}
+
+/* Opponent card backs smaller / partial */
 .sideBacks{
   display:flex;
   flex-direction:column;
   gap:10px;
   padding-bottom:10px;
 }
-
-/* Top area */
-.topArea{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:8px;
-}
 .backRow{
   display:flex;
   gap:10px;
   justify-content:center;
 }
+.topSeat{display:flex; flex-direction:column; align-items:center; gap:6px}
+.bottomSeat{display:flex; flex-direction:column; align-items:center; gap:8px}
+.sideSeat{display:flex; flex-direction:column; align-items:center; gap:10px}
 
-/* Middle area: trick + right HUD column */
+/* Mid area */
 .midArea{
   display:grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 1fr 250px;
   gap: 10px;
   align-items:start;
 }
@@ -181,7 +222,7 @@ body{
 .spot.rightSpot{top:50%; right:0; transform:translateY(-50%)}
 .spot.bottomSpot{bottom:0; left:50%; transform:translateX(-50%)}
 .ghost2{
-  width:72px; height:100px;
+  width:64px; height:92px;
   border-radius:14px;
   border:1px dashed rgba(255,255,255,.35);
   background:rgba(0,0,0,.10);
@@ -201,7 +242,6 @@ body{
   border:1px solid rgba(255,255,255,.14);
   border-radius:16px;
 }
-.upTitle{margin:0}
 
 /* HUD column */
 .hudColumn{display:flex; flex-direction:column; gap:10px}
@@ -271,119 +311,4 @@ body{
 .logBox{
   background:var(--panel2);
   border:1px solid var(--stroke);
-  border-radius:16px;
-  padding:10px;
-  box-shadow:var(--shadow);
-}
-.logBody{
-  max-height:140px;
-  overflow:auto;
-  font-size:13px;
-  line-height:1.2rem;
-}
-
-/* Bottom */
-.bottomArea{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:8px;
-}
-.handStrip{
-  display:flex;
-  gap:10px;
-  align-items:flex-end;
-  justify-content:center;
-  width:100%;
-  overflow-x:auto;
-  padding:6px 6px 2px 6px;
-  -webkit-overflow-scrolling:touch;
-}
-.handStrip::-webkit-scrollbar{display:none}
-.hintLine{
-  color:var(--muted);
-  font-weight:850;
-  text-align:center;
-  min-height:20px;
-}
-
-/* Card */
-.card{
-  flex:0 0 auto;
-  width:clamp(56px, 16.6vw, 92px);
-  height:calc(clamp(56px, 16.6vw, 92px) * 1.37);
-  border-radius:14px;
-  border:1px solid rgba(0,0,0,.25);
-  background:linear-gradient(180deg,#fff,#f4f6f9);
-  box-shadow:0 14px 28px rgba(0,0,0,.30);
-  position:relative;
-  padding:0;
-  cursor:pointer;
-}
-.card.disabled{opacity:.55; cursor:not-allowed}
-.card.red{color:#c0172a}
-.card.black{color:#141a22}
-.card .corner{
-  position:absolute;
-  display:grid;
-  gap:2px;
-  font-weight:950;
-  text-align:center;
-  width:24px;
-}
-.card .corner.tl{top:8px; left:8px}
-.card .corner.br{bottom:8px; right:8px; transform:rotate(180deg)}
-.card .rank{font-size:16px; line-height:16px}
-.card .suit{font-size:16px; line-height:16px}
-.card .pip{
-  position:absolute;
-  inset:0;
-  display:grid;
-  place-items:center;
-  font-size:44px;
-  opacity:.22;
-}
-.card.facedown{
-  background:linear-gradient(135deg,#2a4c7c,#1a2f55);
-  border:1px solid rgba(255,255,255,.14);
-}
-.card.facedown::after{
-  content:"";
-  position:absolute;
-  inset:10px;
-  border-radius:10px;
-  border:1px dashed rgba(255,255,255,.35);
-}
-
-/* Settings modal */
-.modalBackdrop{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.55);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:16px;
-}
-.modal{
-  width:min(520px, 96vw);
-  background:#0e1630;
-  border:1px solid rgba(255,255,255,.14);
-  border-radius:18px;
-  box-shadow:var(--shadow);
-  padding:14px;
-}
-.modalTitle{font-weight:950; font-size:18px; margin-bottom:10px}
-.sectionTitle{font-weight:950; color:var(--muted); margin: 6px 0 10px}
-.field{display:grid; gap:6px; margin-bottom:10px}
-.field label{color:var(--muted); font-weight:850; font-size:13px}
-.field input{
-  padding:12px 12px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.16);
-  background:rgba(255,255,255,.08);
-  color:var(--text);
-  font-weight:850;
-}
-.modalBtns{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px}
-.smallPrint{margin-top:10px; color:var(--muted); font-size:12px; line-height:1.2rem}
+  border-radius:16px
