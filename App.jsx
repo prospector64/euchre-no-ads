@@ -281,7 +281,7 @@ export default function App() {
   // idle, bid1, dealer_discard, bid2, playing, hand_over
 
   const [{ hands, upcard }, setDeal] = useState(() => ({ hands: [[], [], [], []], upcard: null }));
-  const [dealer, setDealer] = useState(3);
+  const [dealer, setDealer] = useState(0);
   const [turn, setTurn] = useState(0);
 
   const [trump, setTrump] = useState(null);
@@ -322,7 +322,7 @@ export default function App() {
 
   function resetEverything() {
     setScore([0, 0]);
-    setDealer(3);
+    setDealer(0);
     setPhase("idle");
     setDeal({ hands: [[], [], [], []], upcard: null });
     setTrump(null);
