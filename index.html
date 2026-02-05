@@ -3,15 +3,18 @@
   <head>
     <meta charset="UTF-8" />
 
-    <!-- Mobile / iOS safe-area + correct scaling -->
+    <!-- iPhone Safari: correct scaling + safe area -->
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
 
-    <!-- Optional: better address-bar / PWA-ish feel in iOS Safari -->
+    <!-- Optional nice-to-haves -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="theme-color" content="#0b1020" />
 
     <title>Euchre (No Ads)</title>
@@ -19,8 +22,6 @@
 
   <body>
     <div id="root"></div>
-
-    <!-- Vite entry -->
     <script type="module" src="/main.jsx"></script>
   </body>
 </html>
