@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * EUCHRE — Playable browser app (minimal but complete)
- * - 2-round bidding with Screw the Dealer
- * - dealer pickup + discard when ordered up
- * - legal play enforcement (effective suit for bowers)
- * - competent heuristic AI for bidding + play
- * - card-shaped UI
+ * EUCHRE — Mobile-first table UI + bidding + screw-the-dealer + going alone
+ * Players:
+ *  P0 = you (bottom)
+ *  P1 = left
+ *  P2 = top (partner)
+ *  P3 = right
+ *
+ * AI fairness:
+ *  - Bots only see their own hand + public info (upcard, bids, trick cards, trump)
+ *  - Only extra inference allowed: if upcard is ordered up, everyone knows dealer has that upcard.
+ *    They do NOT know dealer's discard.
  */
 
 const SUITS = ["♠", "♥", "♦", "♣"];
@@ -42,9 +47,7 @@ function effectiveSuit(c, trump) {
   if (isRightBower(c, trump) || isLeftBower(c, trump)) return trump;
   return c.s;
 }
-
 function cardPower(c, trump, leadSuit) {
-  // Higher is better. Returns 0 if cannot win (off-suit non-trump).
   if (trump) {
     if (isRightBower(c, trump)) return 200;
     if (isLeftBower(c, trump)) return 190;
@@ -75,19 +78,23 @@ function cardKey(c) {
   return `${c.r}${c.s}`;
 }
 
-/** ---------- Euchre heuristics (bidding + play) ---------- **/
+function legalCards(hand, trump, leadSuit) {
+  if (!leadSuit) return hand;
+  const follows = hand.filter((c) => effectiveSuit(c, trump) === leadSuit);
+  return follows.length ? follows : hand;
+}
+
+/** ---------- Heuristics (public-info only) ---------- **/
 
 function handStrengthForTrump(hand, trump) {
-  // heuristic score
+  // heuristic score based ONLY on your hand + candidate trump
   let score = 0;
   for (const c of hand) {
     if (isRightBower(c, trump)) score += 9;
     else if (isLeftBower(c, trump)) score += 7;
     else if (effectiveSuit(c, trump) === trump) {
-      // trump card
-      score += 2 + (rankOrder[c.r] ?? 0) * 0.3;
+      score += 2 + (rankOrder[c.r] ?? 0) * 0.35;
     } else {
-      // side aces are valuable
       if (c.r === "A") score += 1.2;
       if (c.r === "K") score += 0.4;
     }
@@ -110,38 +117,49 @@ function bestSuitChoice(hand, forbiddenSuit) {
 }
 
 function shouldOrderUp(hand, upcardSuit, seatIsDealer, seatIsPartnerDealer) {
-  // Order-up threshold tuned to feel “competent”
-  // Dealer/partner-dealer can order a bit lighter since dealer will gain a trump.
   const sc = handStrengthForTrump(hand, upcardSuit);
-  const threshold = seatIsDealer ? 8.0 : seatIsPartnerDealer ? 7.3 : 7.8;
+  // Dealer/partner-dealer slightly looser
+  const threshold = seatIsDealer ? 7.9 : seatIsPartnerDealer ? 7.2 : 7.7;
   return sc >= threshold;
 }
 
 function shouldCallSuitRound2(hand, forbiddenSuit, mustPick) {
   const { suit, score } = bestSuitChoice(hand, forbiddenSuit);
-  // Call threshold
-  if (mustPick) return { call: true, suit };
-  return { call: score >= 7.6, suit };
+  if (mustPick) return { call: true, suit, score };
+  return { call: score >= 7.55, suit, score };
 }
 
-function legalCards(hand, trump, leadSuit) {
-  if (!leadSuit) return hand;
-  const follows = hand.filter((c) => effectiveSuit(c, trump) === leadSuit);
-  return follows.length ? follows : hand;
+function shouldGoAlone(hand, trump, isOrderUpRound) {
+  // conservative alone heuristic: needs real strength
+  // (you can tune these thresholds later)
+  const sc = handStrengthForTrump(hand, trump);
+
+  const hasRB = hand.some((c) => isRightBower(c, trump));
+  const hasLB = hand.some((c) => isLeftBower(c, trump));
+  const trumpCount = hand.filter((c) => effectiveSuit(c, trump) === trump).length;
+
+  // If ordering up, dealer will gain an extra trump (the upcard) only if dealer
+  // (but caller could be non-dealer). Keep it simple: require strong hand regardless.
+  const aloneThreshold = isOrderUpRound ? 11.3 : 11.0;
+
+  if (sc < aloneThreshold) return false;
+  if (hasRB && (trumpCount >= 3 || (hasLB && trumpCount >= 2))) return true;
+  if (trumpCount >= 4) return true;
+  return false;
 }
 
-function choosePlayCardAI(hand, trump, trick, playerIndex) {
+function choosePlayCardAI(hand, trump, trick) {
   const leadSuit = trick.length ? effectiveSuit(trick[0].card, trump) : null;
   const legal = legalCards(hand, trump, leadSuit);
 
-  // If leading: lead strongest non-trump ace if no great trump, else lead strong trump
+  // Leading
   if (!leadSuit) {
     const trumpCards = legal.filter((c) => effectiveSuit(c, trump) === trump);
-    const hasTopTrump =
-      trumpCards.some((c) => isRightBower(c, trump) || isLeftBower(c, trump) || c.r === "A");
+    const hasTopTrump = trumpCards.some(
+      (c) => isRightBower(c, trump) || isLeftBower(c, trump) || c.r === "A"
+    );
 
     if (hasTopTrump && trumpCards.length) {
-      // lead highest trump
       let best = trumpCards[0];
       let bestP = -1;
       for (const c of trumpCards) {
@@ -151,11 +169,10 @@ function choosePlayCardAI(hand, trump, trick, playerIndex) {
       return best;
     }
 
-    // lead a side ace if possible
     const sideAces = legal.filter((c) => c.r === "A" && effectiveSuit(c, trump) !== trump);
     if (sideAces.length) return sideAces[0];
 
-    // otherwise lead lowest legal
+    // otherwise lowest
     let pick = legal[0];
     let best = Infinity;
     for (const c of legal) {
@@ -165,36 +182,31 @@ function choosePlayCardAI(hand, trump, trick, playerIndex) {
     return pick;
   }
 
-  // Not leading: try to win cheaply if possible, else dump lowest
+  // Following
   const lead = leadSuit;
-  const currentWinning = (() => {
-    let bestIdx = 0;
-    let bestPow = -1;
-    for (let i = 0; i < trick.length; i++) {
-      const pow = cardPower(trick[i].card, trump, lead);
-      if (pow > bestPow) (bestPow = pow), (bestIdx = i);
-    }
-    return { pow: bestPow, card: trick[bestIdx].card };
-  })();
 
-  // Find cheapest card that wins
-  let winningCandidates = [];
+  let currentWinningPow = -1;
+  for (let i = 0; i < trick.length; i++) {
+    const pow = cardPower(trick[i].card, trump, lead);
+    if (pow > currentWinningPow) currentWinningPow = pow;
+  }
+
+  // cheapest winning card
+  const winners = [];
   for (const c of legal) {
     const pow = cardPower(c, trump, lead);
-    if (pow > currentWinning.pow) winningCandidates.push({ c, pow });
+    if (pow > currentWinningPow) winners.push({ c, pow });
   }
-  if (winningCandidates.length) {
-    // choose the one with minimum pow that still wins
-    winningCandidates.sort((a, b) => a.pow - b.pow);
-    return winningCandidates[0].c;
+  if (winners.length) {
+    winners.sort((a, b) => a.pow - b.pow);
+    return winners[0].c;
   }
 
-  // Can't win: dump lowest power card (prefer shedding non-trump)
+  // dump lowest (prefer non-trump)
   let pick = legal[0];
   let best = Infinity;
   for (const c of legal) {
     const pow = cardPower(c, trump, lead);
-    // Treat off-suit non-trump as ultra-low to dump
     const eff = effectiveSuit(c, trump);
     const dumpScore = eff === trump ? pow + 50 : pow;
     if (dumpScore < best) (best = dumpScore), (pick = c);
@@ -202,28 +214,18 @@ function choosePlayCardAI(hand, trump, trick, playerIndex) {
   return pick;
 }
 
-/** ---------- UI Components ---------- **/
+/** ---------- UI components ---------- **/
 
-function Card({ c, onClick, disabled, small, faceDown, selected }) {
-  if (faceDown) {
-    return (
-      <div
-        className={`card ${small ? "small" : ""} facedown`}
-        aria-label="Face down"
-        title="Face down"
-      />
-    );
-  }
+function Card({ c, onClick, disabled, faceDown }) {
+  if (faceDown) return <div className="card facedown" />;
   const red = isRedSuit(c.s);
   return (
     <button
-      className={`card ${small ? "small" : ""} ${red ? "red" : "black"} ${
-        disabled ? "disabled" : ""
-      } ${selected ? "selected" : ""}`}
-      onClick={onClick}
+      className={`card ${red ? "red" : "black"} ${disabled ? "disabled" : ""}`}
       disabled={disabled}
-      title={`${c.r} of ${SUIT_NAMES[c.s]}`}
+      onClick={onClick}
       type="button"
+      title={`${c.r} of ${SUIT_NAMES[c.s]}`}
     >
       <div className="corner tl">
         <div className="rank">{c.r}</div>
@@ -238,96 +240,111 @@ function Card({ c, onClick, disabled, small, faceDown, selected }) {
   );
 }
 
+function NamePill({ name }) {
+  return <div className="namePill">{name}</div>;
+}
+
 /** ---------- Main App ---------- **/
 
 export default function App() {
-  // players: 0 you, 1 left, 2 partner, 3 right
-  const teamOf = (p) => (p % 2); // 0: (0,2) 1: (1,3)
+  const teamOf = (p) => (p % 2); // Team0: 0&2, Team1: 1&3
+
+  const [names, setNames] = useState({
+    p0: "Me",
+    p1: "Michael",
+    p2: "Jerry",
+    p3: "Barbara",
+  });
+  const [showSettings, setShowSettings] = useState(false);
 
   const [phase, setPhase] = useState("idle");
-  // phases: idle, dealt, bid1, dealer_discard, bid2, playing, hand_over
+  // idle, bid1, dealer_discard, bid2, playing, hand_over
 
   const [{ hands, upcard }, setDeal] = useState(() => ({ hands: [[], [], [], []], upcard: null }));
 
-  const [dealer, setDealer] = useState(0);
+  const [dealer, setDealer] = useState(3);
   const [turn, setTurn] = useState(0);
 
   const [trump, setTrump] = useState(null);
-  const [maker, setMaker] = useState(null); // player index who called trump
+  const [maker, setMaker] = useState(null);
   const [makerTeam, setMakerTeam] = useState(null);
-  const [bidLog, setBidLog] = useState([]);
 
+  const [alonePlayer, setAlonePlayer] = useState(null); // player index if someone went alone
   const [trick, setTrick] = useState([]); // {player, card}
   const [tricksWon, setTricksWon] = useState([0, 0]);
   const [score, setScore] = useState([0, 0]);
 
+  const [bidLog, setBidLog] = useState([]);
   const [pendingDealerPickup, setPendingDealerPickup] = useState(false);
   const [forcedDealerPick, setForcedDealerPick] = useState(false);
 
+  // Public knowledge: if upcard is ordered up, everyone knows dealer has that exact card.
+  const [knownDealerHasUpcard, setKnownDealerHasUpcard] = useState(false);
+
   const botTimer = useRef(null);
 
-  const leader = useMemo(() => {
-    if (!trick.length) return turn; // current turn is leader at trick start
-    return trick[0].player;
-  }, [trick, turn]);
+  const playerName = (i) => {
+    if (i === 0) return names.p0;
+    if (i === 1) return names.p1;
+    if (i === 2) return names.p2;
+    return names.p3;
+  };
 
   const leadSuit = useMemo(() => {
     if (!trick.length || !trump) return null;
     return effectiveSuit(trick[0].card, trump);
   }, [trick, trump]);
 
-  function startNewHand() {
-    const dealt = dealHand();
-    setDeal(dealt);
-    setTrump(null);
-    setMaker(null);
-    setMakerTeam(null);
-    setBidLog([]);
-    setTrick([]);
-    setTricksWon([0, 0]);
-    setPendingDealerPickup(false);
-    setForcedDealerPick(false);
-
-    // turn starts left of dealer for bidding
-    const first = (dealer + 1) % 4;
-    setTurn(first);
-    setPhase("bid1");
-  }
-
-  function nextDealerAndHand() {
-    const newDealer = (dealer + 1) % 4;
-    setDealer(newDealer);
-    // next hand begins
-    setTimeout(() => {
-      // set dealer first, then deal
-      // (state updates async; this is fine for our purposes)
-      startNewHand();
-    }, 250);
-  }
+  const gameOver = score[0] >= 10 || score[1] >= 10;
+  const winnerTeam = score[0] >= 10 ? 0 : score[1] >= 10 ? 1 : null;
 
   function logBid(msg) {
     setBidLog((l) => [...l, msg]);
   }
 
-  function playerName(i) {
-    if (i === 0) return "You";
-    if (i === 1) return "P1";
-    if (i === 2) return "Partner";
-    return "P3";
+  function startNewHand(newDealer = dealer) {
+    const dealt = dealHand();
+    setDeal(dealt);
+
+    setTrump(null);
+    setMaker(null);
+    setMakerTeam(null);
+    setAlonePlayer(null);
+
+    setBidLog([]);
+    setTrick([]);
+    setTricksWon([0, 0]);
+
+    setPendingDealerPickup(false);
+    setForcedDealerPick(false);
+    setKnownDealerHasUpcard(false);
+
+    const first = (newDealer + 1) % 4;
+    setTurn(first);
+    setPhase("bid1");
   }
 
-  // Dealer pickup/discard helper
+  function nextDealerAndHand() {
+    const nd = (dealer + 1) % 4;
+    setDealer(nd);
+    setTimeout(() => startNewHand(nd), 150);
+  }
+
   function dealerPickupAndDiscard(discardCard) {
     const d = dealer;
     const newHands = hands.map((h) => [...h]);
-    // add upcard
+
     newHands[d].push(upcard);
-    // remove chosen discard
+
     const idx = newHands[d].findIndex((c) => c.r === discardCard.r && c.s === discardCard.s);
     if (idx >= 0) newHands[d].splice(idx, 1);
+
     setDeal({ hands: newHands, upcard });
     setPendingDealerPickup(false);
-    // Start play: leader is left of dealer
+
+    // Everyone knows dealer has the upcard (public info). They do NOT know discard.
+    setKnownDealerHasUpcard(true);
+
     const firstLead = (dealer + 1) % 4;
     setTurn(firstLead);
     setPhase("playing");
@@ -342,10 +359,7 @@ export default function App() {
     let bestPow = -1;
     for (let i = 0; i < 4; i++) {
       const pow = cardPower(newTrick[i].card, trump, lead);
-      if (pow > bestPow) {
-        bestPow = pow;
-        bestIdx = i;
-      }
+      if (pow > bestPow) (bestPow = pow), (bestIdx = i);
     }
     const winner = newTrick[bestIdx].player;
 
@@ -356,26 +370,32 @@ export default function App() {
     setTrick([]);
     setTurn(winner);
 
-    // after 5 tricks, score hand
-    const tricksPlayed = 5 - newHands[0].length; // everyone same length
+    const tricksPlayed = 5 - newHands[0].length;
     if (tricksPlayed === 5) {
       const newScore = [...score];
       const makerTricks = newTW[makerTeam];
       const defTeam = makerTeam === 0 ? 1 : 0;
 
-      if (makerTricks === 5) newScore[makerTeam] += 2;
-      else if (makerTricks >= 3) newScore[makerTeam] += 1;
-      else newScore[defTeam] += 2; // euchred
+      if (alonePlayer !== null) {
+        // Your requested alone scoring:
+        // 5 tricks alone = 4 points
+        // 3–4 tricks alone = 1 point
+        // <3 => euchred = defenders 2
+        if (makerTricks === 5) newScore[makerTeam] += 4;
+        else if (makerTricks >= 3) newScore[makerTeam] += 1;
+        else newScore[defTeam] += 2;
+      } else {
+        // Normal scoring
+        if (makerTricks === 5) newScore[makerTeam] += 2;
+        else if (makerTricks >= 3) newScore[makerTeam] += 1;
+        else newScore[defTeam] += 2;
+      }
 
       setScore(newScore);
       setPhase("hand_over");
 
-      // auto-next if game not over
-      const gameOver = newScore[0] >= 10 || newScore[1] >= 10;
-      if (!gameOver) {
-        setTimeout(() => {
-          nextDealerAndHand();
-        }, 900);
+      if (!(newScore[0] >= 10 || newScore[1] >= 10)) {
+        setTimeout(() => nextDealerAndHand(), 850);
       }
     }
   }
@@ -383,6 +403,12 @@ export default function App() {
   function playCard(playerIndex, card) {
     if (phase !== "playing") return;
     if (playerIndex !== turn) return;
+
+    // If someone went alone, their partner is “out”
+    if (alonePlayer !== null) {
+      const partner = (alonePlayer + 2) % 4;
+      if (playerIndex === partner) return;
+    }
 
     const hand = hands[playerIndex];
     const legal = legalCards(hand, trump, leadSuit);
@@ -397,67 +423,71 @@ export default function App() {
     setDeal({ hands: newHands, upcard });
     setTrick(newTrick);
 
+    // Advance to next turn (skipping partner if someone is alone)
+    const nextTurn = (cur) => {
+      let n = (cur + 1) % 4;
+      if (alonePlayer !== null) {
+        const partner = (alonePlayer + 2) % 4;
+        if (n === partner) n = (n + 1) % 4;
+      }
+      return n;
+    };
+
     if (newTrick.length < 4) {
-      setTurn((turn + 1) % 4);
+      setTurn(nextTurn(turn));
       return;
     }
-    // resolve trick
-    setTimeout(() => resolveTrickIfComplete(newTrick, newHands), 250);
+
+    setTimeout(() => resolveTrickIfComplete(newTrick, newHands), 220);
   }
 
-  /** ---------- Bidding actions ---------- **/
+  /** ---------- Bidding ---------- **/
 
   function pass() {
     if (phase !== "bid1" && phase !== "bid2") return;
     logBid(`${playerName(turn)} passes.`);
     const next = (turn + 1) % 4;
-
-    // if we just passed and we looped around:
     const backToFirst = next === (dealer + 1) % 4;
 
     if (phase === "bid1") {
-      // after 4 passes -> round2
       if (backToFirst) {
         setPhase("bid2");
         setTurn((dealer + 1) % 4);
-        logBid(`— Round 2: choose a different suit (cannot be ${upcard.s}). —`);
+        logBid(`— Round 2: choose a different suit (not ${upcard.s}). —`);
         return;
       }
       setTurn(next);
       return;
     }
 
-    // phase bid2
+    // bid2
     if (backToFirst) {
-      // everyone passed again -> screw the dealer: dealer must choose
       setForcedDealerPick(true);
       setTurn(dealer);
       logBid(`— Screw the Dealer: ${playerName(dealer)} must choose trump. —`);
       return;
     }
-
     setTurn(next);
   }
 
-  function orderUp() {
-    // Round 1: set trump to upcard suit; maker is turn
+  function orderUp(goAlone = false) {
     if (phase !== "bid1") return;
-
     const caller = turn;
     const t = upcard.s;
+
     setTrump(t);
     setMaker(caller);
     setMakerTeam(teamOf(caller));
-    logBid(`${playerName(caller)} orders up ${t}. Trump is ${t}.`);
+    setAlonePlayer(goAlone ? caller : null);
 
-    // if dealer is ordered up, they must pick up and discard (human if dealer=0)
+    logBid(`${playerName(caller)} orders up ${t}${goAlone ? " (ALONE)" : ""}. Trump is ${t}.`);
+
     setPendingDealerPickup(true);
     setPhase("dealer_discard");
     setTurn(dealer);
   }
 
-  function callSuit(suit) {
-    // Round 2: choose suit != upcard.s
+  function callSuit(suit, goAlone = false) {
     if (phase !== "bid2" && !forcedDealerPick) return;
     if (suit === upcard.s) return;
 
@@ -465,387 +495,408 @@ export default function App() {
     setTrump(suit);
     setMaker(caller);
     setMakerTeam(teamOf(caller));
-    logBid(`${playerName(caller)} calls ${suit}. Trump is ${suit}.`);
+    setAlonePlayer(goAlone ? caller : null);
 
-    // start play, leader left of dealer
+    logBid(`${playerName(caller)} calls ${suit}${goAlone ? " (ALONE)" : ""}. Trump is ${suit}.`);
+
     const firstLead = (dealer + 1) % 4;
     setTurn(firstLead);
     setPhase("playing");
     setForcedDealerPick(false);
   }
 
-  /** ---------- Bot logic driver ---------- **/
+  /** ---------- Bots ---------- **/
 
   function botAct() {
-    if (turn === 0) return; // your move
+    if (turn === 0) return;
 
-    // dealer discard step
+    // If someone went alone, partner is out; skip their turns.
+    if (alonePlayer !== null) {
+      const partner = (alonePlayer + 2) % 4;
+      if (turn === partner) {
+        setTurn((turn + 1) % 4);
+        return;
+      }
+    }
+
+    // Dealer discard step
     if (phase === "dealer_discard" && pendingDealerPickup && turn === dealer) {
-      // simple discard: throw lowest value for trump (upcard suit)
       const t = upcard.s;
       const hand = hands[dealer];
-      // dealer will have 5 cards currently; upcard not yet added in our data model for discard UI.
-      // For bots, simulate pick up then discard:
+
       const tempHand = [...hand, upcard];
-      let pick = tempHand[0];
+      let discard = tempHand[0];
       let worst = Infinity;
       for (const c of tempHand) {
-        const val = cardPower(c, t, t); // value under trump
-        // prefer discarding non-trump junk
+        const val = cardPower(c, t, t);
         const eff = effectiveSuit(c, t);
         const dscore = eff === t ? val + 50 : val;
-        if (dscore < worst) (worst = dscore), (pick = c);
+        if (dscore < worst) (worst = dscore), (discard = c);
       }
-      // apply pickup + discard
+
+      // Apply pickup+discard
       const newHands = hands.map((h) => [...h]);
-      newHands[dealer] = tempHand.filter((c) => !(c.r === pick.r && c.s === pick.s));
+      newHands[dealer] = tempHand.filter((c) => !(c.r === discard.r && c.s === discard.s));
       setDeal({ hands: newHands, upcard });
+
       setPendingDealerPickup(false);
+      setKnownDealerHasUpcard(true);
       setPhase("playing");
+
       const firstLead = (dealer + 1) % 4;
       setTurn(firstLead);
+
       logBid(`${playerName(dealer)} picked up and discarded.`);
       return;
     }
 
-    // bidding
+    // Bidding Round 1
     if (phase === "bid1") {
       const hand = hands[turn];
+
       const seatIsDealer = turn === dealer;
       const seatIsPartnerDealer = turn === (dealer + 2) % 4;
 
       if (shouldOrderUp(hand, upcard.s, seatIsDealer, seatIsPartnerDealer)) {
-        orderUp();
+        const alone = shouldGoAlone(hand, upcard.s, true);
+        orderUp(alone);
       } else {
         pass();
       }
       return;
     }
 
+    // Bidding Round 2
     if (phase === "bid2") {
       const hand = hands[turn];
       const mustPick = forcedDealerPick && turn === dealer;
+
       const res = shouldCallSuitRound2(hand, upcard.s, mustPick);
-      if (res.call) callSuit(res.suit);
-      else pass();
+      if (res.call) {
+        const alone = shouldGoAlone(hand, res.suit, false);
+        callSuit(res.suit, alone);
+      } else {
+        pass();
+      }
       return;
     }
 
-    // playing
+    // Playing
     if (phase === "playing") {
       const hand = hands[turn];
-      const c = choosePlayCardAI(hand, trump, trick, turn);
+      const c = choosePlayCardAI(hand, trump, trick);
+
+      // AI does NOT peek partner’s hand (it never references any other hands)
+      // Public info exception is tracked by knownDealerHasUpcard, but we currently
+      // only record it (not using it to "cheat" on discard knowledge).
+      // You can expand probability-based logic later if you want.
+      void knownDealerHasUpcard;
+
       playCard(turn, c);
     }
   }
 
-  // Bot ticking
   useEffect(() => {
     if (botTimer.current) clearInterval(botTimer.current);
     botTimer.current = setInterval(() => {
-      // bots only act in active phases
       if (phase === "idle" || phase === "hand_over") return;
       if (turn !== 0) botAct();
-    }, 350);
+    }, 320);
     return () => clearInterval(botTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, turn, hands, trick, trump, pendingDealerPickup, forcedDealerPick]);
+  }, [phase, turn, hands, trick, trump, pendingDealerPickup, forcedDealerPick, alonePlayer]);
 
-  /** ---------- UI data ---------- **/
-
-  const gameOver = score[0] >= 10 || score[1] >= 10;
-  const winnerTeam = score[0] >= 10 ? 0 : score[1] >= 10 ? 1 : null;
+  /** ---------- UI helpers ---------- **/
 
   const yourHand = hands[0] || [];
   const yourLegal = phase === "playing" ? legalCards(yourHand, trump, leadSuit) : yourHand;
   const yourLegalSet = useMemo(() => new Set(yourLegal.map(cardKey)), [yourLegal]);
 
-  const dealerHandForDiscardUI = useMemo(() => {
+  const dealerDiscardChoices = useMemo(() => {
     if (!(phase === "dealer_discard" && pendingDealerPickup && dealer === 0)) return null;
-    // show your 5 + upcard, then you click which to discard
     return [...hands[0], upcard];
   }, [phase, pendingDealerPickup, dealer, hands, upcard]);
 
-  /** ---------- Render ---------- **/
+  const trickCard = (p) => trick.find((t) => t.player === p)?.card || null;
 
   return (
-    <div className="wrap">
-      <header className="topbar">
-        <div className="title">Euchre</div>
-        <div className="subtitle">No Ads • Browser App</div>
-      </header>
+    <div className="screen">
+      <div className="topHUD">
+        <button className="iconBtn" onClick={() => setShowSettings(true)} type="button" title="Settings">
+          ⚙️
+        </button>
 
-      <div className="hud">
-        <div className="hudBox">
-          <div className="hudRow"><span className="label">Dealer</span><span className="val">{playerName(dealer)}</span></div>
-          <div className="hudRow"><span className="label">Turn</span><span className="val">{playerName(turn)}</span></div>
-          <div className="hudRow"><span className="label">Upcard</span><span className="val">{upcard ? `${upcard.r}${upcard.s}` : "—"}</span></div>
-          <div className="hudRow"><span className="label">Trump</span><span className="val">{trump ? trump : "—"}</span></div>
-          <div className="hudRow"><span className="label">Lead Suit</span><span className="val">{leadSuit ? leadSuit : "—"}</span></div>
+        <div className="scorePill">
+          <span className="scoreLabel">US</span>
+          <span className="scoreNum">{score[0]}</span>
+          <span className="divider" />
+          <span className="scoreLabel">THEM</span>
+          <span className="scoreNum">{score[1]}</span>
         </div>
 
-        <div className="hudBox">
-          <div className="hudTitle">Tricks (this hand)</div>
-          <div className="hudRow"><span className="label">Team 0 (You+Partner)</span><span className="val">{tricksWon[0]}</span></div>
-          <div className="hudRow"><span className="label">Team 1 (P1+P3)</span><span className="val">{tricksWon[1]}</span></div>
-          {maker !== null && trump && (
-            <div className="hudNote">
-              Maker: <b>{playerName(maker)}</b> (Team {makerTeam})
-            </div>
-          )}
-        </div>
-
-        <div className="hudBox">
-          <div className="hudTitle">Score (to 10)</div>
-          <div className="hudRow"><span className="label">Team 0</span><span className="val">{score[0]}</span></div>
-          <div className="hudRow"><span className="label">Team 1</span><span className="val">{score[1]}</span></div>
-          {gameOver && (
-            <div className="hudNote">
-              ✅ Team {winnerTeam} wins!
-            </div>
-          )}
+        <div className="smallInfo">
+          <div>Dealer: <b>{playerName(dealer)}</b></div>
+          <div>Trump: <b>{trump ?? "—"}</b></div>
         </div>
       </div>
 
-      <div className="controls">
-        {phase === "idle" && (
-          <button className="primary" onClick={() => startNewHand()} type="button">
-            Start Game / Deal Hand
-          </button>
-        )}
-
-        {(phase === "hand_over" && !gameOver) && (
-          <button className="primary" onClick={() => nextDealerAndHand()} type="button">
-            Next Hand
-          </button>
-        )}
-
-        {gameOver && (
-          <button
-            className="primary"
-            onClick={() => {
-              setScore([0, 0]);
-              setDealer(0);
-              setPhase("idle");
-              setDeal({ hands: [[], [], [], []], upcard: null });
-              setTrump(null);
-              setMaker(null);
-              setMakerTeam(null);
-              setBidLog([]);
-              setTrick([]);
-              setTricksWon([0, 0]);
-            }}
-            type="button"
-          >
-            New Game
-          </button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="table">
-        <div className="seat top">
-          <div className="seatName">{playerName(2)} (Partner)</div>
-          <div className="handFanned">
+      <div className="table2">
+        {/* TOP PLAYER */}
+        <div className="topArea">
+          <NamePill name={playerName(2)} />
+          <div className="backRow">
             {Array.from({ length: hands[2]?.length ?? 0 }).map((_, i) => (
-              <Card key={i} faceDown small />
+              <Card key={i} faceDown />
             ))}
           </div>
         </div>
 
-        <div className="seat left">
-          <div className="seatName">{playerName(1)}</div>
-          <div className="handFanned">
+        {/* LEFT + RIGHT NAME BARS */}
+        <div className="leftBar">
+          <div className="verticalName">{playerName(1)}</div>
+          <div className="sideBacks">
             {Array.from({ length: hands[1]?.length ?? 0 }).map((_, i) => (
-              <Card key={i} faceDown small />
+              <Card key={i} faceDown />
             ))}
           </div>
         </div>
 
-        <div className="center">
-          <div className="centerTop">
-            {upcard && (
-              <div className="upcard">
-                <div className="miniLabel">Upcard</div>
-                <Card c={upcard} small />
-              </div>
-            )}
-
-            <div className="trickArea">
-              <div className="miniLabel">Current Trick</div>
-              <div className="trickGrid">
-                {/* top */}
-                <div className="trickSpot topSpot">
-                  {trick.find((t) => t.player === 2) ? (
-                    <Card c={trick.find((t) => t.player === 2).card} />
-                  ) : (
-                    <div className="ghost">—</div>
-                  )}
-                </div>
-                {/* left */}
-                <div className="trickSpot leftSpot">
-                  {trick.find((t) => t.player === 1) ? (
-                    <Card c={trick.find((t) => t.player === 1).card} />
-                  ) : (
-                    <div className="ghost">—</div>
-                  )}
-                </div>
-                {/* right */}
-                <div className="trickSpot rightSpot">
-                  {trick.find((t) => t.player === 3) ? (
-                    <Card c={trick.find((t) => t.player === 3).card} />
-                  ) : (
-                    <div className="ghost">—</div>
-                  )}
-                </div>
-                {/* bottom (you) */}
-                <div className="trickSpot bottomSpot">
-                  {trick.find((t) => t.player === 0) ? (
-                    <Card c={trick.find((t) => t.player === 0).card} />
-                  ) : (
-                    <div className="ghost">—</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bidding panel */}
-          {(phase === "bid1" || phase === "bid2" || phase === "dealer_discard") && (
-            <div className="panel">
-              <div className="panelTitle">Action</div>
-
-              {phase === "bid1" && (
-                <div className="panelBody">
-                  <div className="panelLine">
-                    Round 1: Order up <b>{upcard?.s}</b> or pass.
-                  </div>
-
-                  {turn === 0 ? (
-                    <div className="btnRow">
-                      <button className="primary" onClick={orderUp} type="button">
-                        Order Up
-                      </button>
-                      <button className="secondary" onClick={pass} type="button">
-                        Pass
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="panelLine muted">Waiting for {playerName(turn)}…</div>
-                  )}
-                </div>
-              )}
-
-              {phase === "dealer_discard" && pendingDealerPickup && (
-                <div className="panelBody">
-                  <div className="panelLine">
-                    Trump is <b>{trump}</b>. Dealer must pick up the upcard and discard one.
-                  </div>
-
-                  {dealer === 0 ? (
-                    <>
-                      <div className="panelLine muted">Tap a card below to discard it.</div>
-                      <div className="discardRow">
-                        {dealerHandForDiscardUI?.map((c) => (
-                          <Card
-                            key={cardKey(c)}
-                            c={c}
-                            onClick={() => dealerPickupAndDiscard(c)}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="panelLine muted">Waiting for dealer…</div>
-                  )}
-                </div>
-              )}
-
-              {phase === "bid2" && (
-                <div className="panelBody">
-                  <div className="panelLine">
-                    Round 2: Choose a suit (not <b>{upcard?.s}</b>) or pass.
-                  </div>
-                  {forcedDealerPick && (
-                    <div className="panelLine warn">Screw the Dealer: dealer must choose.</div>
-                  )}
-
-                  {turn === 0 ? (
-                    <div className="btnCol">
-                      <div className="btnRow">
-                        {SUITS.filter((s) => s !== upcard?.s).map((s) => (
-                          <button
-                            key={s}
-                            className="primary"
-                            onClick={() => callSuit(s)}
-                            type="button"
-                          >
-                            Call {s}
-                          </button>
-                        ))}
-                      </div>
-                      {!forcedDealerPick && (
-                        <button className="secondary" onClick={pass} type="button">
-                          Pass
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="panelLine muted">Waiting for {playerName(turn)}…</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Bid log */}
-          <div className="log">
-            <div className="logTitle">Bidding Log</div>
-            <div className="logBody">
-              {bidLog.length ? bidLog.slice(-10).map((x, i) => <div key={i}>{x}</div>) : <div className="muted">—</div>}
-            </div>
-          </div>
-        </div>
-
-        <div className="seat right">
-          <div className="seatName">{playerName(3)}</div>
-          <div className="handFanned">
+        <div className="rightBar">
+          <div className="verticalName">{playerName(3)}</div>
+          <div className="sideBacks">
             {Array.from({ length: hands[3]?.length ?? 0 }).map((_, i) => (
-              <Card key={i} faceDown small />
+              <Card key={i} faceDown />
             ))}
           </div>
         </div>
 
-        <div className="seat bottom">
-          <div className="seatName">{playerName(0)} (You)</div>
+        {/* CENTER: upcard + current trick */}
+        <div className="centerArea">
+          <div className="upcardBox">
+            <div className="miniTitle">Upcard</div>
+            {upcard ? <Card c={upcard} /> : <div className="ghost2" />}
+          </div>
 
-          <div className="yourHand">
+          <div className="trickBox">
+            <div className="miniTitle">Current Trick</div>
+            <div className="trickLayout">
+              <div className="spot topSpot">{trickCard(2) ? <Card c={trickCard(2)} /> : <div className="ghost2" />}</div>
+              <div className="spot leftSpot">{trickCard(1) ? <Card c={trickCard(1)} /> : <div className="ghost2" />}</div>
+              <div className="spot rightSpot">{trickCard(3) ? <Card c={trickCard(3)} /> : <div className="ghost2" />}</div>
+              <div className="spot bottomSpot">{trickCard(0) ? <Card c={trickCard(0)} /> : <div className="ghost2" />}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* BOTTOM: your hand */}
+        <div className="bottomArea">
+          <NamePill name={playerName(0)} />
+
+          <div className="handStrip" aria-label="Your hand">
             {yourHand.map((c) => {
               const legal = yourLegalSet.has(cardKey(c));
               const disabled =
-                phase !== "playing" || turn !== 0 || !legal || gameOver;
+                phase !== "playing" || turn !== 0 || !legal || gameOver || (alonePlayer !== null && (alonePlayer + 2) % 4 === 0);
 
               return (
                 <Card
                   key={cardKey(c)}
                   c={c}
-                  onClick={() => playCard(0, c)}
                   disabled={disabled}
-                  selected={phase === "playing" && turn === 0 && legal}
+                  onClick={() => playCard(0, c)}
                 />
               );
             })}
           </div>
 
-          {phase === "playing" && turn === 0 && (
-            <div className="hint">
-              {leadSuit
+          <div className="hintLine">
+            {phase === "playing" && turn === 0
+              ? leadSuit
                 ? `Follow suit if possible: ${leadSuit}`
-                : "You lead. Tap a card to play."}
+                : "You lead. Tap a card to play."
+              : phase === "playing"
+              ? `Waiting for ${playerName(turn)}…`
+              : ""}
+          </div>
+        </div>
+
+        {/* ACTION OVERLAY */}
+        <div className="actionPanel">
+          {phase === "idle" && (
+            <button className="bigBtn" onClick={() => startNewHand(dealer)} type="button">
+              Start Game / Deal Hand
+            </button>
+          )}
+
+          {(phase === "hand_over" && !gameOver) && (
+            <button className="bigBtn" onClick={nextDealerAndHand} type="button">
+              Next Hand
+            </button>
+          )}
+
+          {gameOver && (
+            <button
+              className="bigBtn"
+              onClick={() => {
+                setScore([0, 0]);
+                setDealer(3);
+                setPhase("idle");
+                setDeal({ hands: [[], [], [], []], upcard: null });
+                setTrump(null);
+                setMaker(null);
+                setMakerTeam(null);
+                setAlonePlayer(null);
+                setBidLog([]);
+                setTrick([]);
+                setTricksWon([0, 0]);
+                setKnownDealerHasUpcard(false);
+              }}
+              type="button"
+            >
+              New Game
+            </button>
+          )}
+
+          {(phase === "bid1" || phase === "bid2" || phase === "dealer_discard") && (
+            <div className="box">
+              <div className="boxTitle">Action</div>
+
+              {phase === "bid1" && (
+                <>
+                  <div className="boxLine">
+                    Round 1: Order up <b>{upcard?.s}</b> or pass.
+                  </div>
+                  {turn === 0 ? (
+                    <div className="row">
+                      <button className="btnPrimary" onClick={() => orderUp(false)} type="button">
+                        Order Up
+                      </button>
+                      <button className="btnPrimary" onClick={() => orderUp(true)} type="button">
+                        Order Up (Alone)
+                      </button>
+                      <button className="btnGhost" onClick={pass} type="button">
+                        Pass
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="muted">Waiting for {playerName(turn)}…</div>
+                  )}
+                </>
+              )}
+
+              {phase === "dealer_discard" && pendingDealerPickup && (
+                <>
+                  <div className="boxLine">
+                    Trump is <b>{trump}</b>. Dealer must pick up the upcard and discard one.
+                  </div>
+                  {dealer === 0 ? (
+                    <>
+                      <div className="muted">Tap a card to discard it.</div>
+                      <div className="discardStrip">
+                        {dealerDiscardChoices?.map((c) => (
+                          <Card key={cardKey(c)} c={c} onClick={() => dealerPickupAndDiscard(c)} />
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="muted">Waiting for dealer…</div>
+                  )}
+                </>
+              )}
+
+              {phase === "bid2" && (
+                <>
+                  <div className="boxLine">
+                    Round 2: Choose a suit (not <b>{upcard?.s}</b>) or pass.
+                  </div>
+                  {forcedDealerPick && (
+                    <div className="warn">Screw the Dealer: dealer must choose.</div>
+                  )}
+
+                  {turn === 0 ? (
+                    <>
+                      <div className="row">
+                        {SUITS.filter((s) => s !== upcard?.s).map((s) => (
+                          <button key={s} className="btnPrimary" onClick={() => callSuit(s, false)} type="button">
+                            Call {s}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="row">
+                        {SUITS.filter((s) => s !== upcard?.s).map((s) => (
+                          <button key={`a-${s}`} className="btnPrimary" onClick={() => callSuit(s, true)} type="button">
+                            Call {s} (Alone)
+                          </button>
+                        ))}
+                      </div>
+                      {!forcedDealerPick && (
+                        <button className="btnGhost" onClick={pass} type="button">
+                          Pass
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="muted">Waiting for {playerName(turn)}…</div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {(phase !== "idle") && (
+            <div className="logBox">
+              <div className="logTitle">Bidding Log</div>
+              <div className="logBody">
+                {bidLog.length ? bidLog.slice(-8).map((x, i) => <div key={i}>{x}</div>) : <div className="muted">—</div>}
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* SETTINGS MODAL */}
+      {showSettings && (
+        <div className="modalBackdrop" onClick={() => setShowSettings(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modalTitle">Player Names</div>
+
+            <div className="field">
+              <label>You (bottom)</label>
+              <input value={names.p0} onChange={(e) => setNames((n) => ({ ...n, p0: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label>Left (P1)</label>
+              <input value={names.p1} onChange={(e) => setNames((n) => ({ ...n, p1: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label>Partner (top)</label>
+              <input value={names.p2} onChange={(e) => setNames((n) => ({ ...n, p2: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label>Right (P3)</label>
+              <input value={names.p3} onChange={(e) => setNames((n) => ({ ...n, p3: e.target.value }))} />
+            </div>
+
+            <div className="modalBtns">
+              <button className="btnPrimary" onClick={() => setShowSettings(false)} type="button">
+                Done
+              </button>
+              <button
+                className="btnGhost"
+                onClick={() => setNames({ p0: "Me", p1: "Michael", p2: "Jerry", p3: "Barbara" })}
+                type="button"
+              >
+                Reset Names
+              </button>
+            </div>
+
+            <div className="smallPrint">
+              Note: Bots do not see partner hands. Only public info is used (upcard, trump, trick cards, bids).
+              If the upcard is ordered up, everyone knows the dealer has that card (but not the discard).
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
