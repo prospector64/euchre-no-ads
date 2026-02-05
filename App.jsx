@@ -120,24 +120,22 @@ function shouldCallSuitRound2(hand, forbiddenSuit, mustPick) {
 }
 
 /** Stricter loner heuristic (rare) */
-function shouldGoAlone_STRICT(hand, trump, seatIsDealer) {
-  const sc = handStrengthForTrump(hand, trump);
-  const hasRB = hand.some((c) => isRightBower(c, trump));
-  if (!hasRB) return false;
+function shouldGoAlone_STRICT(hand, trump, seatIsDealer, upcard, orderedUpRound1) {
+  // Count trump in the *final* dealer hand if they are picking up.
+  const willPickUp = orderedUpRound1 && seatIsDealer; // dealer picks up only in round 1 order-up
 
-  const hasLB = hand.some((c) => isLeftBower(c, trump));
-  const trumpCount = hand.filter((c) => effectiveSuit(c, trump) === trump).length;
-  const sideAces = hand.filter((c) => c.r === "A" && effectiveSuit(c, trump) !== trump).length;
+  const effectiveTrumpCount =
+    hand.filter((c) => effectiveSuit(c, trump) === trump).length + (willPickUp ? 1 : 0);
 
-  const baseThreshold = seatIsDealer ? 12.4 : 13.2;
-  if (sc < baseThreshold) return false;
+  const hasRBInHand = hand.some((c) => isRightBower(c, trump));
+  const hasRBUpcard = willPickUp && upcard && isRightBower(upcard, trump);
 
-  if (trumpCount >= 4) return true;
-  if (trumpCount >= 3 && (hasLB || sideAces >= 1)) return true;
-  if (trumpCount >= 2 && hasLB && sideAces >= 1) return true;
+  const hasRightBower = hasRBInHand || hasRBUpcard;
 
-  return false;
+  // Require Right Bower AND 4 trump total, with pickup counting for dealer
+  return hasRightBower && effectiveTrumpCount >= 4;
 }
+
 
 function choosePlayCardAI(hand, trump, trick) {
   const leadSuit = trick.length ? effectiveSuit(trick[0].card, trump) : null;
@@ -265,7 +263,12 @@ function DealerChip() {
 }
 function TrumpChip({ suit }) {
   if (!suit) return null;
-  return <span className="chip trumpChip">{suit}</span>;
+  const red = suit === "♥" || suit === "♦";
+  return (
+    <span className={`chip trumpChip ${red ? "chipRed" : "chipBlack"}`}>
+      {suit}
+    </span>
+  );
 }
 
 function Stars({ filled, className = "" }) {
@@ -302,11 +305,34 @@ export default function App() {
   const [trick, setTrick] = useState([]); // {player, card}
   const [tricksWonTeam, setTricksWonTeam] = useState([0, 0]);
   const [tricksWonPlayer, setTricksWonPlayer] = useState([0, 0, 0, 0]); // per-player stars
+  const [tricksCompleted, setTricksCompleted] = useState(0);
 
   const [score, setScore] = useState([0, 0]);
 
   const [bidLog, setBidLog] = useState([]);
   const [logOpen, setLogOpen] = useState(true);
+
+  const [seatBadge, setSeatBadge] = useState(["", "", "", ""]);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+
+function flashBadge(seat, text, ms = 900) {
+  setSeatBadge((prev) => {
+    const next = [...prev];
+    next[seat] = text;
+    return next;
+  });
+  setTimeout(() => {
+    setSeatBadge((prev) => {
+      const next = [...prev];
+      if (next[seat] === text) next[seat] = "";
+      return next;
+    });
+  }, ms);
+}
+
+function setCooldown(ms = 650) {
+  setCooldownUntil(Date.now() + ms);
+}
 
   const [pendingDealerPickup, setPendingDealerPickup] = useState(false);
   const [forcedDealerPick, setForcedDealerPick] = useState(false);
@@ -319,6 +345,7 @@ export default function App() {
 
   const playerName = (i) => (i === 0 ? names.p0 : i === 1 ? names.p1 : i === 2 ? names.p2 : names.p3);
   const gameOver = score[0] >= 10 || score[1] >= 10;
+  const winningTeam = () => (score[0] >= 10 ? 0 : score[1] >= 10 ? 1 : null);
 
   const leadSuit = useMemo(() => {
     if (!trick.length || !trump) return null;
@@ -363,6 +390,7 @@ export default function App() {
     setTrick([]);
     setTricksWonTeam([0, 0]);
     setTricksWonPlayer([0, 0, 0, 0]);
+    setTricksCompleted(0);
 
     setPendingDealerPickup(false);
     setForcedDealerPick(false);
@@ -434,11 +462,14 @@ export default function App() {
     });
   }
 
-  function finishTrickAndAdvance(winner, newHands, newTWTeam, newTWPlayer) {
-    setPauseTrick(true);
-    setTrickWinnerPreview(winner);
+ function finishTrickAndAdvance(winner, newHands, newTWTeam, newTWPlayer) {
+  setPauseTrick(true);
+  setTrickWinnerPreview(winner);
 
-    setTimeout(() => {
+  setTimeout(() => {
+    setTricksCompleted((prev) => {
+      const completedNow = prev + 1;
+
       setPauseTrick(false);
       setTrickWinnerPreview(null);
 
@@ -447,8 +478,7 @@ export default function App() {
       setTricksWonTeam(newTWTeam);
       setTricksWonPlayer(newTWPlayer);
 
-      const tricksPlayed = 5 - newHands[0].length;
-      if (tricksPlayed === 5) {
+      if (completedNow === 5) {
         const newScore = [...score];
         const makerTricks = newTWTeam[makerTeam];
         const defTeam = makerTeam === 0 ? 1 : 0;
@@ -466,8 +496,11 @@ export default function App() {
         setScore(newScore);
         setPhase("hand_over");
       }
-    }, 850);
-  }
+
+      return completedNow;
+    });
+  }, 850);
+}
 
   function resolveTrickIfComplete(newTrick, newHands) {
     const targetCount = inactivePlayer === null ? 4 : 3;
@@ -521,6 +554,8 @@ export default function App() {
   function pass() {
     if (phase !== "bid1" && phase !== "bid2") return;
     logBid(`${playerName(turn)} passes.`);
+    flashBadge(turn, "PASS");
+setCooldown();
     const next = (turn + 1) % 4;
     const backToFirst = next === (dealer + 1) % 4;
 
@@ -547,6 +582,8 @@ export default function App() {
   function orderUp(goAlone = false) {
     if (phase !== "bid1") return;
     const caller = turn;
+    flashBadge(caller, goAlone ? "ALONE" : "ORDER");
+setCooldown();
     const t = upcard.s;
 
     setTrump(t);
@@ -571,6 +608,8 @@ export default function App() {
     if (suit === upcard.s) return;
 
     const caller = turn;
+    flashBadge(caller, goAlone ? "ALONE" : `CALL ${suit}`);
+setCooldown();
 
     setTrump(suit);
     setMaker(caller);
@@ -594,6 +633,7 @@ export default function App() {
 
   /** ---------- Bots ---------- **/
   function botAct() {
+    if (Date.now() < cooldownUntil) return;
     if (turn === 0) return;
     if (pauseTrick) return;
 
@@ -637,7 +677,7 @@ export default function App() {
       const seatIsPartnerDealer = turn === (dealer + 2) % 4;
 
       if (shouldOrderUp(hand, upcard.s, seatIsDealer, seatIsPartnerDealer)) {
-        const alone = shouldGoAlone_STRICT(hand, upcard.s, seatIsDealer);
+        const alone = shouldGoAlone_STRICT(hand, upcard.s, seatIsDealer, upcard, true);
         orderUp(alone);
       } else pass();
       return;
@@ -650,7 +690,7 @@ export default function App() {
 
       const res = shouldCallSuitRound2(hand, upcard.s, mustPick);
       if (res.call) {
-        const alone = shouldGoAlone_STRICT(hand, res.suit, seatIsDealer);
+        const alone = shouldGoAlone_STRICT(hand, res.suit, seatIsDealer, upcard, false);
         callSuit(res.suit, alone);
       } else pass();
       return;
@@ -738,6 +778,7 @@ export default function App() {
               <Stars filled={tricksWonPlayer[1]} className="vertical" />
               <div className="nameRow verticalText">
                 <span className="seatName">{playerName(1)}</span>
+                {seatBadge[1] && <span className="seatBadge">{seatBadge[1]}</span>}
                 {dealerOfSeat(1) && <DealerChip />}
                 {makerOfSeat(1) && <TrumpChip suit={trump} />}
               </div>
@@ -752,6 +793,7 @@ export default function App() {
             <div className="seatHeader horizontal">
               <div className="nameRow">
                 <span className="seatName">{playerName(2)}</span>
+                {seatBadge[2] && <span className="seatBadge">{seatBadge[2]}</span>}
                 {dealerOfSeat(2) && <DealerChip />}
                 {makerOfSeat(2) && <TrumpChip suit={trump} />}
               </div>
@@ -949,6 +991,7 @@ export default function App() {
             <div className="seatHeader horizontal">
               <div className="nameRow">
                 <span className="seatName">{playerName(0)}</span>
+                {seatBadge[0] && <span className="seatBadge">{seatBadge[0]}</span>}
                 {dealerOfSeat(0) && <DealerChip />}
                 {makerOfSeat(0) && <TrumpChip suit={trump} />}
               </div>
@@ -981,6 +1024,7 @@ export default function App() {
               <Stars filled={tricksWonPlayer[3]} className="vertical" />
               <div className="nameRow verticalText">
                 <span className="seatName">{playerName(3)}</span>
+                {seatBadge[3] && <span className="seatBadge">{seatBadge[3]}</span>}
                 {dealerOfSeat(3) && <DealerChip />}
                 {makerOfSeat(3) && <TrumpChip suit={trump} />}
               </div>
@@ -988,6 +1032,26 @@ export default function App() {
           </div>
         </div>
       </div>
+      
+{winningTeam() !== null && (
+  <div className="modalBackdrop">
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="winTitle">
+        {winningTeam() === 0
+          ? `${playerName(0)} and ${playerName(2)} win!!`
+          : `${playerName(1)} and ${playerName(3)} win!!`}
+      </div>
+      <div className="winScore">
+        Final Score: <b>{score[0]}</b> – <b>{score[1]}</b>
+      </div>
+      <div className="modalBtns">
+        <button className="btnPrimary" onClick={resetEverything} type="button">
+          New Game
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* SETTINGS MODAL */}
       {showSettings && (
