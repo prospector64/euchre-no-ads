@@ -274,7 +274,7 @@ function Stars({ filled, className = "" }) {
 export default function App() {
   const teamOf = (p) => p % 2;
 
-  const [names, setNames] = useState({ p0: "Me", p1: "Michael", p2: "Jerry", p3: "Barbara" });
+  const [names, setNames] = useState({ p0: "Nick", p1: "Jim", p2: "Maddie", p3: "Jenn" });
   const [showSettings, setShowSettings] = useState(false);
 
   const [phase, setPhase] = useState("idle");
