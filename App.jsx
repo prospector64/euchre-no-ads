@@ -98,9 +98,18 @@ function bestSuitChoice(hand, forbiddenSuit) {
 
 /** Make bots pass more often (so upcard is NOT always ordered) */
 function shouldOrderUp(hand, upSuit, seatIsDealer, seatIsPartnerDealer) {
+  const trumpCount = hand.filter((c) => effectiveSuit(c, upSuit) === upSuit).length;
+  if (trumpCount >= 3) return true;
+
   const sc = handStrengthForTrump(hand, upSuit);
-  // raised thresholds to reduce auto-ordering
-  const threshold = seatIsDealer ? 8.6 : seatIsPartnerDealer ? 8.1 : 8.4;
+
+  // Your rule: partner dealing => slightly looser; opponent dealing => tighter
+  const threshold = seatIsPartnerDealer ? 12.8 : 13.2;
+
+  // (Optional) if YOU are the dealer and thinking about picking it up,
+  // you can make it slightly looser or keep it aligned. I'd keep it aligned:
+  // const threshold = seatIsPartnerDealer ? 12.8 : 13.2;
+
   return sc >= threshold;
 }
 
