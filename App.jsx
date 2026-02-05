@@ -330,7 +330,7 @@ function flashBadge(seat, text, ms = 900) {
   }, ms);
 }
 
-function setCooldown(ms = 650) {
+function setCooldown(ms = 1000) {
   setCooldownUntil(Date.now() + ms);
 }
 
