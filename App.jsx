@@ -315,7 +315,7 @@ export default function App() {
   const [seatBadge, setSeatBadge] = useState(["", "", "", ""]);
   const [cooldownUntil, setCooldownUntil] = useState(0);
 
-function flashBadge(seat, text, ms = 900) {
+function flashBadge(seat, text, ms = 2500) {
   setSeatBadge((prev) => {
     const next = [...prev];
     next[seat] = text;
@@ -330,7 +330,7 @@ function flashBadge(seat, text, ms = 900) {
   }, ms);
 }
 
-function setCooldown(ms = 1000) {
+function setCooldown(ms = 3000) {
   setCooldownUntil(Date.now() + ms);
 }
 
