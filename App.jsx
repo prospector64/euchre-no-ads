@@ -800,10 +800,10 @@ setCooldown();
         </button>
 
         <div className="scorePill">
-          <span className="scoreLabel">{playerName(0)} & {playerName(3)}</span>
+          <span className="scoreLabel">{playerName(0)} & {playerName(2)}</span>
           <span className="scoreNum">{score[0]}</span>
           <span className="divider" />
-          <span className="scoreLabel">{playerName(1)} & {playerName(2)}</span>
+          <span className="scoreLabel">{playerName(1)} & {playerName(3)}</span>
           <span className="scoreNum">{score[1]}</span>
         </div>
 
