@@ -768,6 +768,24 @@ setCooldown();
   }
 
   useEffect(() => {
+  if (phase !== "dealer_discard") return;
+  if (!pendingDealerPickup) return;
+  if (inactivePlayer === null) return;
+
+  if (dealer === inactivePlayer) {
+    // dealer is sitting out; no discard needed
+    setPendingDealerPickup(false);
+    setPhase("playing");
+    setLogOpen(false);
+
+    const firstLead = normalizeTurnMaybe((dealer + 1) % 4);
+    setTurn(firstLead);
+
+    logBid(`Dealer (${playerName(dealer)}) sits out — pickup/discard skipped.`);
+  }
+}, [phase, pendingDealerPickup, inactivePlayer, dealer]);
+
+  useEffect(() => {
     if (botTimer.current) clearInterval(botTimer.current);
     botTimer.current = setInterval(() => {
       if (phase === "idle" || phase === "hand_over") return;
