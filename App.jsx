@@ -1,16 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * EUCHRE — Mobile-first table UI + bidding + screw-the-dealer + going alone
- * Fixes in this version:
- * 1) Loner partner sits out: turn rotation + UI prompts skip inactive seat (no stuck game)
- * 2) Log option A: auto-collapses after bidding; toggle button to open/close
- * 3) Settings includes "Restart Game" (full reset)
- * 4) Layout lanes: center cannot overlap side stacks
- * 5) Upcard shown in center during bidding, disappears after pickup or bidding ends
- * 6) Much stricter AI loner rules (rare, needs very strong hand)
- */
-
+/** ---------- Constants & helpers ---------- **/
 const SUITS = ["♠", "♥", "♦", "♣"];
 const SUIT_NAMES = { "♠": "Spades", "♥": "Hearts", "♦": "Diamonds", "♣": "Clubs" };
 const RANKS = ["9", "10", "J", "Q", "K", "A"];
@@ -52,7 +42,6 @@ function cardPower(c, trump, leadSuit) {
   const eff = effectiveSuit(c, trump);
   const isTrump = trump && eff === trump;
   const followsLead = leadSuit && eff === leadSuit;
-
   if (leadSuit && !isTrump && !followsLead) return 0;
 
   const base = rankOrder[c.r] ?? 0;
@@ -81,8 +70,7 @@ function legalCards(hand, trump, leadSuit) {
   return follows.length ? follows : hand;
 }
 
-/** ---------- AI (public info only) ---------- **/
-
+/** ---------- AI heuristics ---------- **/
 function handStrengthForTrump(hand, trump) {
   let score = 0;
   for (const c of hand) {
@@ -96,53 +84,37 @@ function handStrengthForTrump(hand, trump) {
   }
   return score;
 }
-
 function bestSuitChoice(hand, forbiddenSuit) {
   let best = null;
   let bestScore = -Infinity;
   for (const s of SUITS) {
     if (s === forbiddenSuit) continue;
     const sc = handStrengthForTrump(hand, s);
-    if (sc > bestScore) {
-      bestScore = sc;
-      best = s;
-    }
+    if (sc > bestScore) (bestScore = sc), (best = s);
   }
   return { suit: best, score: bestScore };
 }
-
 function shouldOrderUp(hand, upcardSuit, seatIsDealer, seatIsPartnerDealer) {
   const sc = handStrengthForTrump(hand, upcardSuit);
   const threshold = seatIsDealer ? 7.9 : seatIsPartnerDealer ? 7.2 : 7.7;
   return sc >= threshold;
 }
-
 function shouldCallSuitRound2(hand, forbiddenSuit, mustPick) {
   const { suit, score } = bestSuitChoice(hand, forbiddenSuit);
   if (mustPick) return { call: true, suit, score };
   return { call: score >= 7.55, suit, score };
 }
 
-/**
- * Stricter loner heuristic (rare):
- * Needs high chance at 4+ tricks.
- * Rules (typical in real play):
- * - Almost always requires Right Bower
- * - Wants 3 trump+ OR (RB+LB+2 trump) OR (RB+2 trump + strong protected side Ace)
- * - Also needs at least one side "winner" candidate (Ace) unless trump is 4+
- */
+/** Much stricter loner heuristic (rare) */
 function shouldGoAlone_STRICT(hand, trump, seatIsDealer) {
   const sc = handStrengthForTrump(hand, trump);
   const hasRB = hand.some((c) => isRightBower(c, trump));
   if (!hasRB) return false;
 
   const hasLB = hand.some((c) => isLeftBower(c, trump));
-  const trumpCards = hand.filter((c) => effectiveSuit(c, trump) === trump);
-  const trumpCount = trumpCards.length;
-
+  const trumpCount = hand.filter((c) => effectiveSuit(c, trump) === trump).length;
   const sideAces = hand.filter((c) => c.r === "A" && effectiveSuit(c, trump) !== trump).length;
 
-  // Very conservative thresholds so loners are uncommon:
   const baseThreshold = seatIsDealer ? 12.2 : 13.0;
   if (sc < baseThreshold) return false;
 
@@ -183,7 +155,6 @@ function choosePlayCardAI(hand, trump, trick) {
   }
 
   const lead = leadSuit;
-
   let currentWinningPow = -1;
   for (let i = 0; i < trick.length; i++) {
     const pow = cardPower(trick[i].card, trump, lead);
@@ -212,13 +183,14 @@ function choosePlayCardAI(hand, trump, trick) {
 }
 
 /** ---------- UI components ---------- **/
-
-function Card({ c, onClick, disabled, faceDown }) {
-  if (faceDown) return <div className="card facedown" />;
+function Card({ c, onClick, disabled, faceDown, small, highlight }) {
+  if (faceDown) return <div className={`card facedown ${small ? "small" : ""}`} />;
   const red = isRedSuit(c.s);
   return (
     <button
-      className={`card ${red ? "red" : "black"} ${disabled ? "disabled" : ""}`}
+      className={`card ${red ? "red" : "black"} ${disabled ? "disabled" : ""} ${small ? "small" : ""} ${
+        highlight ? "highlight" : ""
+      }`}
       disabled={disabled}
       onClick={onClick}
       type="button"
@@ -237,46 +209,92 @@ function Card({ c, onClick, disabled, faceDown }) {
   );
 }
 
-function NamePill({ name }) {
-  return <div className="namePill">{name}</div>;
+function DealerChip() {
+  return <span className="chip dealerChip">D</span>;
+}
+function TrumpChip({ suit }) {
+  if (!suit) return null;
+  return <span className="chip trumpChip">{suit}</span>;
+}
+
+function Stars({ filled }) {
+  // 5 stars, filled left->right
+  const n = Math.max(0, Math.min(5, filled));
+  return (
+    <div className="stars" aria-label={`Tricks won: ${n}`}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <span key={i} className={`star ${i < n ? "on" : ""}`}>★</span>
+      ))}
+    </div>
+  );
+}
+
+/** Sort your (P0) hand when trump set:
+ * - trump to the far right (highest to farthest right)
+ * - same-color non-trump next right (high right)
+ * - other suits grouped, high right within each suit
+ */
+function sortHandForTrump(hand, trump) {
+  if (!trump) return hand;
+
+  const suitIndex = (s) => SUITS.indexOf(s);
+
+  const valueWithinSuit = (c) => {
+    // for sorting within bucket: use euchre power as a proxy (higher = stronger)
+    // leadSuit irrelevant; use trump & suit itself
+    const eff = effectiveSuit(c, trump);
+    const lead = eff;
+    return cardPower(c, trump, lead);
+  };
+
+  const sortKey = (c) => {
+    const eff = effectiveSuit(c, trump);
+    const cat = eff === trump ? 3 : sameColor(eff, trump) ? 2 : 1;
+    const suitGroup = suitIndex(eff); // stable grouping
+    const val = valueWithinSuit(c);
+    // bigger key => should be more to the right
+    return cat * 1000 + suitGroup * 100 + val;
+  };
+
+  // left->right ascending; high keys end up on the right
+  return [...hand].sort((a, b) => sortKey(a) - sortKey(b));
 }
 
 /** ---------- Main App ---------- **/
-
 export default function App() {
   const teamOf = (p) => p % 2;
 
-  const [names, setNames] = useState({
-    p0: "Me",
-    p1: "Michael",
-    p2: "Jerry",
-    p3: "Barbara",
-  });
+  const [names, setNames] = useState({ p0: "Me", p1: "Michael", p2: "Jerry", p3: "Barbara" });
   const [showSettings, setShowSettings] = useState(false);
 
   const [phase, setPhase] = useState("idle");
   // idle, bid1, dealer_discard, bid2, playing, hand_over
 
   const [{ hands, upcard }, setDeal] = useState(() => ({ hands: [[], [], [], []], upcard: null }));
-
   const [dealer, setDealer] = useState(3);
   const [turn, setTurn] = useState(0);
 
   const [trump, setTrump] = useState(null);
   const [maker, setMaker] = useState(null);
   const [makerTeam, setMakerTeam] = useState(null);
-
   const [alonePlayer, setAlonePlayer] = useState(null);
   const inactivePlayer = useMemo(() => (alonePlayer === null ? null : (alonePlayer + 2) % 4), [alonePlayer]);
 
-  const [trick, setTrick] = useState([]);
-  const [tricksWon, setTricksWon] = useState([0, 0]);
+  const [trick, setTrick] = useState([]); // {player, card}
+  const [tricksWonTeam, setTricksWonTeam] = useState([0, 0]);
+  const [tricksWonPlayer, setTricksWonPlayer] = useState([0, 0, 0, 0]); // ⭐ per-player (resets each hand)
+
   const [score, setScore] = useState([0, 0]);
 
   const [bidLog, setBidLog] = useState([]);
-  const [logOpen, setLogOpen] = useState(true); // opens during bidding; collapses after
+  const [logOpen, setLogOpen] = useState(true);
+
   const [pendingDealerPickup, setPendingDealerPickup] = useState(false);
   const [forcedDealerPick, setForcedDealerPick] = useState(false);
+
+  // trick pacing / highlight
+  const [trickWinnerPreview, setTrickWinnerPreview] = useState(null); // winner seat after complete
+  const [pauseTrick, setPauseTrick] = useState(false);
 
   const botTimer = useRef(null);
 
@@ -288,7 +306,6 @@ export default function App() {
   }, [trick, trump]);
 
   const gameOver = score[0] >= 10 || score[1] >= 10;
-  const winnerTeam = score[0] >= 10 ? 0 : score[1] >= 10 ? 1 : null;
 
   function logBid(msg) {
     setBidLog((l) => [...l, msg]);
@@ -305,15 +322,20 @@ export default function App() {
     setAlonePlayer(null);
     setBidLog([]);
     setTrick([]);
-    setTricksWon([0, 0]);
+    setTricksWonTeam([0, 0]);
+    setTricksWonPlayer([0, 0, 0, 0]);
     setPendingDealerPickup(false);
     setForcedDealerPick(false);
     setLogOpen(true);
     setTurn(0);
+    setTrickWinnerPreview(null);
+    setPauseTrick(false);
   }
 
   function startNewHand(newDealer = dealer) {
     const dealt = dealHand();
+
+    // keep all hands, but we will sort P0 later once trump is chosen
     setDeal(dealt);
 
     setTrump(null);
@@ -323,16 +345,19 @@ export default function App() {
 
     setBidLog([]);
     setTrick([]);
-    setTricksWon([0, 0]);
+    setTricksWonTeam([0, 0]);
+    setTricksWonPlayer([0, 0, 0, 0]);
 
     setPendingDealerPickup(false);
     setForcedDealerPick(false);
 
+    setTrickWinnerPreview(null);
+    setPauseTrick(false);
+
     const first = (newDealer + 1) % 4;
     setTurn(first);
     setPhase("bid1");
-    setLogOpen(true); // open during bidding
-
+    setLogOpen(true);
     logBid(`— New hand. Upcard is ${dealt.upcard.r}${dealt.upcard.s}. —`);
   }
 
@@ -342,7 +367,7 @@ export default function App() {
     setTimeout(() => startNewHand(nd), 150);
   }
 
-  /** Turn rotation that skips inactive player when someone is alone */
+  /** Turn rotation that skips inactive seat in loner */
   function nextTurnIndex(cur) {
     let n = (cur + 1) % 4;
     if (inactivePlayer !== null && n === inactivePlayer) n = (n + 1) % 4;
@@ -352,12 +377,23 @@ export default function App() {
     if (inactivePlayer !== null && t === inactivePlayer) return nextTurnIndex(t);
     return t;
   }
-
   useEffect(() => {
-    // If loner state changes while it's inactive player's turn, immediately skip to next
     setTurn((t) => normalizeTurnMaybe(t));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inactivePlayer]);
+
+  /** Highlight current winning card while trick in progress */
+  const currentWinningPlayer = useMemo(() => {
+    if (!trick.length || !trump) return null;
+    const lead = effectiveSuit(trick[0].card, trump);
+    let bestP = trick[0].player;
+    let bestPow = -1;
+    for (const t of trick) {
+      const pow = cardPower(t.card, trump, lead);
+      if (pow > bestPow) (bestPow = pow), (bestP = t.player);
+    }
+    return bestP;
+  }, [trick, trump]);
 
   function dealerPickupAndDiscard(discardCard) {
     const d = dealer;
@@ -373,12 +409,53 @@ export default function App() {
     const firstLead = normalizeTurnMaybe((dealer + 1) % 4);
     setTurn(firstLead);
     setPhase("playing");
-    setLogOpen(false); // collapse log after bidding completes
+    setLogOpen(false);
     logBid(`${playerName(d)} picked up and discarded.`);
+
+    // Once trump is set (it already is), sort your hand now
+    setDeal((prev) => {
+      const nh = prev.hands.map((h, i) => (i === 0 ? sortHandForTrump(h, trump) : h));
+      return { ...prev, hands: nh };
+    });
+  }
+
+  function finishTrickAndAdvance(winner, newHands, newTWTeam, newTWPlayer) {
+    // Pause with winner highlighted so humans can process
+    setPauseTrick(true);
+    setTrickWinnerPreview(winner);
+
+    setTimeout(() => {
+      setPauseTrick(false);
+      setTrickWinnerPreview(null);
+
+      setTrick([]);
+      setTurn(normalizeTurnMaybe(winner));
+      setTricksWonTeam(newTWTeam);
+      setTricksWonPlayer(newTWPlayer);
+
+      const tricksPlayed = 5 - newHands[0].length;
+      if (tricksPlayed === 5) {
+        const newScore = [...score];
+        const makerTricks = newTWTeam[makerTeam];
+        const defTeam = makerTeam === 0 ? 1 : 0;
+
+        if (alonePlayer !== null) {
+          if (makerTricks === 5) newScore[makerTeam] += 4;
+          else if (makerTricks >= 3) newScore[makerTeam] += 1;
+          else newScore[defTeam] += 2;
+        } else {
+          if (makerTricks === 5) newScore[makerTeam] += 2;
+          else if (makerTricks >= 3) newScore[makerTeam] += 1;
+          else newScore[defTeam] += 2;
+        }
+
+        setScore(newScore);
+        setPhase("hand_over");
+      }
+    }, 850);
   }
 
   function resolveTrickIfComplete(newTrick, newHands) {
-    // In a loner, trick size is 3; otherwise 4
     const targetCount = inactivePlayer === null ? 4 : 3;
     if (newTrick.length < targetCount) return;
 
@@ -391,38 +468,18 @@ export default function App() {
     }
     const winner = newTrick[bestIdx].player;
 
-    const newTW = [...tricksWon];
-    newTW[teamOf(winner)] += 1;
-    setTricksWon(newTW);
+    const newTWTeam = [...tricksWonTeam];
+    newTWTeam[teamOf(winner)] += 1;
 
-    setTrick([]);
-    setTurn(normalizeTurnMaybe(winner));
+    const newTWPlayer = [...tricksWonPlayer];
+    newTWPlayer[winner] += 1;
 
-    const tricksPlayed = 5 - newHands[0].length;
-    if (tricksPlayed === 5) {
-      const newScore = [...score];
-      const makerTricks = newTW[makerTeam];
-      const defTeam = makerTeam === 0 ? 1 : 0;
-
-      if (alonePlayer !== null) {
-        // Your loner scoring
-        if (makerTricks === 5) newScore[makerTeam] += 4;
-        else if (makerTricks >= 3) newScore[makerTeam] += 1;
-        else newScore[defTeam] += 2;
-      } else {
-        // Normal scoring
-        if (makerTricks === 5) newScore[makerTeam] += 2;
-        else if (makerTricks >= 3) newScore[makerTeam] += 1;
-        else newScore[defTeam] += 2;
-      }
-
-      setScore(newScore);
-      setPhase("hand_over");
-    }
+    finishTrickAndAdvance(winner, newHands, newTWTeam, newTWPlayer);
   }
 
   function playCard(playerIndex, card) {
     if (phase !== "playing") return;
+    if (pauseTrick) return;
     if (playerIndex !== turn) return;
     if (inactivePlayer !== null && playerIndex === inactivePlayer) return;
 
@@ -431,11 +488,9 @@ export default function App() {
     const isLegal = legal.some((c) => c.r === card.r && c.s === card.s);
     if (!isLegal) return;
 
-    const newHands = hands.map((h, i) =>
-      i === playerIndex ? h.filter((c) => !(c.r === card.r && c.s === card.s)) : h
-    );
-
+    const newHands = hands.map((h, i) => (i === playerIndex ? h.filter((c) => !(c.r === card.r && c.s === card.s)) : h));
     const newTrick = [...trick, { player: playerIndex, card }];
+
     setDeal({ hands: newHands, upcard });
     setTrick(newTrick);
 
@@ -445,11 +500,10 @@ export default function App() {
       return;
     }
 
-    setTimeout(() => resolveTrickIfComplete(newTrick, newHands), 220);
+    setTimeout(() => resolveTrickIfComplete(newTrick, newHands), 250);
   }
 
   /** ---------- Bidding ---------- **/
-
   function pass() {
     if (phase !== "bid1" && phase !== "bid2") return;
     logBid(`${playerName(turn)} passes.`);
@@ -491,6 +545,12 @@ export default function App() {
     setPendingDealerPickup(true);
     setPhase("dealer_discard");
     setTurn(dealer);
+
+    // Sort your hand for display once trump known (even before discard)
+    setDeal((prev) => {
+      const nh = prev.hands.map((h, i) => (i === 0 ? sortHandForTrump(h, t) : h));
+      return { ...prev, hands: nh };
+    });
   }
 
   function callSuit(suit, goAlone = false) {
@@ -498,6 +558,7 @@ export default function App() {
     if (suit === upcard.s) return;
 
     const caller = turn;
+
     setTrump(suit);
     setMaker(caller);
     setMakerTeam(teamOf(caller));
@@ -505,21 +566,25 @@ export default function App() {
 
     logBid(`${playerName(caller)} calls ${suit}${goAlone ? " (ALONE)" : ""}. Trump is ${suit}.`);
 
-    // bidding ends here; upcard disappears now
     setPhase("playing");
     setForcedDealerPick(false);
     setLogOpen(false);
 
     const firstLead = normalizeTurnMaybe((dealer + 1) % 4);
     setTurn(firstLead);
+
+    // Sort your hand now that trump known
+    setDeal((prev) => {
+      const nh = prev.hands.map((h, i) => (i === 0 ? sortHandForTrump(h, suit) : h));
+      return { ...prev, hands: nh };
+    });
   }
 
   /** ---------- Bots ---------- **/
-
   function botAct() {
     if (turn === 0) return;
+    if (pauseTrick) return;
 
-    // If it ever lands on inactive seat, skip immediately (prevents stuck)
     if (inactivePlayer !== null && turn === inactivePlayer) {
       setTurn(nextTurnIndex(turn));
       return;
@@ -562,9 +627,7 @@ export default function App() {
       if (shouldOrderUp(hand, upcard.s, seatIsDealer, seatIsPartnerDealer)) {
         const alone = shouldGoAlone_STRICT(hand, upcard.s, seatIsDealer);
         orderUp(alone);
-      } else {
-        pass();
-      }
+      } else pass();
       return;
     }
 
@@ -577,9 +640,7 @@ export default function App() {
       if (res.call) {
         const alone = shouldGoAlone_STRICT(hand, res.suit, seatIsDealer);
         callSuit(res.suit, alone);
-      } else {
-        pass();
-      }
+      } else pass();
       return;
     }
 
@@ -595,13 +656,12 @@ export default function App() {
     botTimer.current = setInterval(() => {
       if (phase === "idle" || phase === "hand_over") return;
       if (turn !== 0) botAct();
-    }, 320);
+    }, 340);
     return () => clearInterval(botTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, turn, hands, trick, trump, pendingDealerPickup, forcedDealerPick, inactivePlayer]);
+  }, [phase, turn, hands, trick, trump, pendingDealerPickup, forcedDealerPick, inactivePlayer, pauseTrick]);
 
-  /** ---------- UI helpers ---------- **/
-
+  /** ---------- UI derived ---------- **/
   const yourHand = hands[0] || [];
   const yourLegal = phase === "playing" ? legalCards(yourHand, trump, leadSuit) : yourHand;
   const yourLegalSet = useMemo(() => new Set(yourLegal.map(cardKey)), [yourLegal]);
@@ -614,8 +674,7 @@ export default function App() {
   const trickCard = (p) => trick.find((t) => t.player === p)?.card || null;
 
   const shouldShowUpcardInCenter =
-    upcard &&
-    (phase === "bid1" || phase === "bid2" || (phase === "dealer_discard" && pendingDealerPickup));
+    upcard && (phase === "bid1" || phase === "bid2" || (phase === "dealer_discard" && pendingDealerPickup));
 
   const statusLine = useMemo(() => {
     if (phase === "playing") {
@@ -624,7 +683,10 @@ export default function App() {
       return `Waiting for ${playerName(turn)}…`;
     }
     return "";
-  }, [phase, inactivePlayer, alonePlayer, playerName, turn, leadSuit]);
+  }, [phase, inactivePlayer, alonePlayer, turn, leadSuit]);
+
+  const dealerOfSeat = (i) => i === dealer;
+  const makerOfSeat = (i) => maker !== null && i === maker;
 
   return (
     <div className="screen">
@@ -643,9 +705,6 @@ export default function App() {
 
         <div className="smallInfo">
           <div>
-            Dealer: <b>{playerName(dealer)}</b>
-          </div>
-          <div>
             Trump: <b>{trump ?? "—"}</b>
           </div>
         </div>
@@ -654,33 +713,77 @@ export default function App() {
       <div className="tableGrid">
         {/* LEFT LANE */}
         <div className="lane leftLane">
-          <div className="verticalName">{playerName(1)}</div>
-          <div className="sideBacks">
-            {Array.from({ length: hands[1]?.length ?? 0 }).map((_, i) => (
-              <Card key={i} faceDown />
-            ))}
+          <div className="sideSeat">
+            <div className="seatHeader vertical">
+              <div className="nameRow verticalText">
+                <span className="seatName">{playerName(1)}</span>
+                {dealerOfSeat(1) && <DealerChip />}
+                {makerOfSeat(1) && <TrumpChip suit={trump} />}
+              </div>
+              <Stars filled={tricksWonPlayer[1]} />
+            </div>
+
+            <div className="sideBacks">
+              {Array.from({ length: hands[1]?.length ?? 0 }).map((_, i) => (
+                <Card key={i} faceDown small />
+              ))}
+            </div>
           </div>
         </div>
 
         {/* CENTER LANE */}
         <div className="lane centerLane">
-          <div className="topArea">
-            <NamePill name={playerName(2)} />
+          {/* TOP seat */}
+          <div className="topSeat">
+            <div className="seatHeader horizontal">
+              <div className="nameRow">
+                <span className="seatName">{playerName(2)}</span>
+                {dealerOfSeat(2) && <DealerChip />}
+                {makerOfSeat(2) && <TrumpChip suit={trump} />}
+              </div>
+              <Stars filled={tricksWonPlayer[2]} />
+            </div>
+
             <div className="backRow">
               {Array.from({ length: hands[2]?.length ?? 0 }).map((_, i) => (
-                <Card key={i} faceDown />
+                <Card key={i} faceDown small />
               ))}
             </div>
           </div>
 
+          {/* MID area */}
           <div className="midArea">
             <div className="midBox">
               <div className="miniTitle">Current Trick</div>
               <div className="trickLayout">
-                <div className="spot topSpot">{trickCard(2) ? <Card c={trickCard(2)} /> : <div className="ghost2" />}</div>
-                <div className="spot leftSpot">{trickCard(1) ? <Card c={trickCard(1)} /> : <div className="ghost2" />}</div>
-                <div className="spot rightSpot">{trickCard(3) ? <Card c={trickCard(3)} /> : <div className="ghost2" />}</div>
-                <div className="spot bottomSpot">{trickCard(0) ? <Card c={trickCard(0)} /> : <div className="ghost2" />}</div>
+                <div className="spot topSpot">
+                  {trickCard(2) ? (
+                    <Card c={trickCard(2)} highlight={(pauseTrick ? trickWinnerPreview : currentWinningPlayer) === 2} />
+                  ) : (
+                    <div className="ghost2" />
+                  )}
+                </div>
+                <div className="spot leftSpot">
+                  {trickCard(1) ? (
+                    <Card c={trickCard(1)} highlight={(pauseTrick ? trickWinnerPreview : currentWinningPlayer) === 1} />
+                  ) : (
+                    <div className="ghost2" />
+                  )}
+                </div>
+                <div className="spot rightSpot">
+                  {trickCard(3) ? (
+                    <Card c={trickCard(3)} highlight={(pauseTrick ? trickWinnerPreview : currentWinningPlayer) === 3} />
+                  ) : (
+                    <div className="ghost2" />
+                  )}
+                </div>
+                <div className="spot bottomSpot">
+                  {trickCard(0) ? (
+                    <Card c={trickCard(0)} highlight={(pauseTrick ? trickWinnerPreview : currentWinningPlayer) === 0} />
+                  ) : (
+                    <div className="ghost2" />
+                  )}
+                </div>
 
                 {shouldShowUpcardInCenter && (
                   <div className="upcardInCenter">
@@ -691,7 +794,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Action + Log (does not cover board) */}
+            {/* ACTION + LOG column */}
             <div className="hudColumn">
               <div className="actionBox">
                 <div className="boxTitle">Action</div>
@@ -777,12 +880,7 @@ export default function App() {
                             </div>
                             <div className="row">
                               {SUITS.filter((s) => s !== upcard?.s).map((s) => (
-                                <button
-                                  key={`a-${s}`}
-                                  className="btnPrimary"
-                                  onClick={() => callSuit(s, true)}
-                                  type="button"
-                                >
+                                <button key={`a-${s}`} className="btnPrimary" onClick={() => callSuit(s, true)} type="button">
                                   Call {s} (Alone)
                                 </button>
                               ))}
@@ -818,17 +916,28 @@ export default function App() {
             </div>
           </div>
 
-          <div className="bottomArea">
-            <NamePill name={playerName(0)} />
-            <div className="handStrip" aria-label="Your hand">
+          {/* BOTTOM seat */}
+          <div className="bottomSeat">
+            <div className="seatHeader horizontal">
+              <div className="nameRow">
+                <span className="seatName">{playerName(0)}</span>
+                {dealerOfSeat(0) && <DealerChip />}
+                {makerOfSeat(0) && <TrumpChip suit={trump} />}
+              </div>
+              <Stars filled={tricksWonPlayer[0]} />
+            </div>
+
+            <div className="handStrip">
               {yourHand.map((c) => {
                 const legal = yourLegalSet.has(cardKey(c));
                 const disabled =
                   phase !== "playing" ||
+                  pauseTrick ||
                   turn !== 0 ||
                   !legal ||
                   gameOver ||
                   (inactivePlayer !== null && inactivePlayer === 0);
+
                 return <Card key={cardKey(c)} c={c} disabled={disabled} onClick={() => playCard(0, c)} />;
               })}
             </div>
@@ -838,11 +947,21 @@ export default function App() {
 
         {/* RIGHT LANE */}
         <div className="lane rightLane">
-          <div className="verticalName">{playerName(3)}</div>
-          <div className="sideBacks">
-            {Array.from({ length: hands[3]?.length ?? 0 }).map((_, i) => (
-              <Card key={i} faceDown />
-            ))}
+          <div className="sideSeat">
+            <div className="seatHeader vertical">
+              <div className="nameRow verticalText">
+                <span className="seatName">{playerName(3)}</span>
+                {dealerOfSeat(3) && <DealerChip />}
+                {makerOfSeat(3) && <TrumpChip suit={trump} />}
+              </div>
+              <Stars filled={tricksWonPlayer[3]} />
+            </div>
+
+            <div className="sideBacks">
+              {Array.from({ length: hands[3]?.length ?? 0 }).map((_, i) => (
+                <Card key={i} faceDown small />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -882,8 +1001,8 @@ export default function App() {
             </div>
 
             <div className="smallPrint">
-              Loner rules: partner sits out (3-card tricks). AI loners are intentionally rare and require very strong hands
-              (Right Bower + strong trump control + likely winners).
+              Dealer has a “D” chip. Caller shows the trump suit chip. Stars track each player’s own trick wins (not partner),
+              and reset every hand.
             </div>
           </div>
         </div>
