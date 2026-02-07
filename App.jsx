@@ -297,14 +297,12 @@ function Card({ c, onClick, disabled, faceDown, small, highlight, dim, compact }
         <>
           <div className="corner tl">
             <div className="rank">{c.r}</div>
-            <div className="suit">{c.s}</div>
           </div>
 
           <div className="pip">{c.s}</div>
 
           <div className="corner br">
             <div className="rank">{c.r}</div>
-            <div className="suit">{c.s}</div>
           </div>
         </>
       )}
