@@ -289,8 +289,11 @@ function Card({ c, onClick, disabled, faceDown, small, highlight, dim, compact }
       title={`${c.r} of ${SUIT_NAMES[c.s]}`}
     >
       {compact ? (
-        <div className="pip pipOnly">{c.s}</div>
-      ) : (
+  <div className="miniFace">
+    <div className="miniRank">{c.r}</div>
+    <div className="miniSuit">{c.s}</div>
+  </div>
+) : (
         <>
           <div className="corner tl">
             <div className="rank">{c.r}</div>
