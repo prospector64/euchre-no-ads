@@ -566,14 +566,15 @@ body{
   width: 52px;   /* bump width a touch */
 }
 /* Compact cards: used in discard strip to prevent overlap */
-.card.compact .pip{ display:none; }
+.card.compact .corner{ display:none; }
 .card.compact .corner.br{ display:none; }
 
 /* Make compact corner easier to read */
-.card.compact .corner{
-  padding:10px;
-  line-height:1;
-  gap:2px;
+.card .pip{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
 }
 
 .card.compact .corner .rank{ font-size:18px; }
@@ -582,6 +583,11 @@ body{
 /* Give compact discard cards a bit more width so text doesn't feel cramped */
 .discardStrip .card.compact{
   width:56px;
+}
+.card .corner .rank{
+  display:inline-block;
+  width:20px;          /* fixed width so "10" centers */
+  text-align:center;
 }
 
 
