@@ -503,87 +503,29 @@ body{
   font-size: 16px;
 }
 
-/* ---------- THIN / MINI CARDS ---------- */
-/* You likely have a class like .slim, .mini, .thin etc.
-   Add whichever matches your JSX. This block covers common names.
-   If you only use one, you can delete the others. */
-.card.slim,
-.card.mini,
-.card.thin{
-  /* Give corners a little breathing room */
-  padding-top: 6px;
-  padding-bottom: 6px;
-  overflow: hidden; /* prevents any accidental bleed */
-}
-
-/* On skinny cards, show ONLY one corner (top-left) to stop overlap */
-.card.slim .corner.br,
-.card.mini .corner.br,
-.card.thin .corner.br{
-  display: none;
-}
-
-/* Keep top-left readable but not colliding */
-.card.slim .corner,
-.card.mini .corner,
-.card.thin .corner{
-  padding: 6px;
-  gap: 1px;
-}
-
-/* If you have separate spans, size them nicely on skinny cards */
-.card.slim .corner .rank,
-.card.mini .corner .rank,
-.card.thin .corner .rank{
-  font-size: 15px;
-}
-
-.card.slim .corner .suit,
-.card.mini .corner .suit,
-.card.thin .corner .suit{
-  font-size: 17px;
-}
-
-/* Center suit / pips: scale down so it doesn't clash with corners */
-.card.slim .pip,
-.card.mini .pip,
-.card.thin .pip{
-  transform: translate(-50%, -50%) scale(0.82);
-}
-
-/* If your center mark is a single element like .bigSuit, shrink it */
-.card.slim .bigSuit,
-.card.mini .bigSuit,
-.card.thin .bigSuit{
-  transform: translate(-50%, -50%) scale(0.82);
-}
-
-/* If your thin cards are used specifically inside the Action box,
-   this makes them slightly wider for readability without blowing layout. */
-.actionBox .card.slim,
-.actionBox .card.mini,
-.actionBox .card.thin{
-  width: 52px;   /* bump width a touch */
-}
-/* Compact cards: used in discard strip to prevent overlap */
+/* ===== Compact cards (discard strip): pip-only ===== */
 .card.compact .corner{ display:none; }
-.card.compact .corner.br{ display:none; }
 
-/* Make compact corner easier to read */
-.card .pip{
+/* Ensure pip is visible + centered */
+.card.compact .pip{
   position:absolute;
   left:50%;
   top:50%;
   transform:translate(-50%, -50%);
+  display:block;
 }
 
-.card.compact .corner .rank{ font-size:18px; }
-.card.compact .corner .suit{ font-size:20px; }
+/* Make pip large enough to read */
+.card.compact .pip.pipOnly{
+  font-size:34px;
+  line-height:1;
+}
 
-/* Give compact discard cards a bit more width so text doesn't feel cramped */
+/* Give compact discard cards a bit more width */
 .discardStrip .card.compact{
   width:56px;
 }
+
 .card .corner .rank{
   display:inline-block;
   width:20px;          /* fixed width so "10" centers */
