@@ -268,7 +268,7 @@ function sortHandForTrump(hand, trump) {
 }
 
 /** ---------- UI components ---------- **/
-function Card({ c, onClick, disabled, faceDown, small, highlight, dim }) {
+function Card({ c, onClick, disabled, faceDown, small, highlight, dim, compact }) {
   if (faceDown) return <div className={`card facedown ${small ? "small" : ""}`} />;
 
   const isRed = c.s === "♥" || c.s === "♦";
@@ -279,6 +279,7 @@ function Card({ c, onClick, disabled, faceDown, small, highlight, dim }) {
         isRed ? "red" : "black",
         disabled ? "disabled" : "",
         small ? "small" : "",
+        compact ? "compact" : "",
         highlight ? "highlight" : "",
         dim ? "dim" : "",
       ].join(" ")}
@@ -292,12 +293,15 @@ function Card({ c, onClick, disabled, faceDown, small, highlight, dim }) {
         <div className="suit">{c.s}</div>
       </div>
 
-      <div className="pip">{c.s}</div>
+      {/* Hide center + bottom corner on compact cards (discard strip) */}
+      {!compact && <div className="pip">{c.s}</div>}
 
-      <div className="corner br">
-        <div className="rank">{c.r}</div>
-        <div className="suit">{c.s}</div>
-      </div>
+      {!compact && (
+        <div className="corner br">
+          <div className="rank">{c.r}</div>
+          <div className="suit">{c.s}</div>
+        </div>
+      )}
     </button>
   );
 }
@@ -1003,7 +1007,7 @@ setCooldown();
                             <div className="muted">Tap a card to discard it.</div>
                             <div className="discardStrip">
                               {dealerDiscardChoices?.map((c) => (
-                                <Card key={cardKey(c)} c={c} onClick={() => dealerPickupAndDiscard(c)} />
+                               <Card key={cardKey(c)} c={c} onClick={() => dealerPickupAndDiscard(c)} compact />
                               ))}
                             </div>
                           </>
