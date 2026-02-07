@@ -531,5 +531,39 @@ body{
   width:20px;          /* fixed width so "10" centers */
   text-align:center;
 }
+/* ===== Compact discard cards: centered rank + suit ===== */
+.card.compact .corner{ display:none; }
+.card.compact .pip{ display:none; } /* hide normal center pip */
+
+/* Centered mini face */
+.card.compact .miniFace{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  line-height:1;
+  font-weight:1000;
+}
+
+/* Bigger rank so it's readable, including "10" */
+.card.compact .miniRank{
+  font-size:24px;
+  width:28px;           /* keeps "10" centered */
+  text-align:center;
+}
+
+/* Suit slightly larger */
+.card.compact .miniSuit{
+  font-size:28px;
+}
+
+/* Make compact discard cards slightly wider (optional) */
+.discardStrip .card.compact{
+  width:56px;
+}
 
 
