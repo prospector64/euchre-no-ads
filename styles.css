@@ -565,4 +565,23 @@ body{
 .actionBox .card.thin{
   width: 52px;   /* bump width a touch */
 }
+/* Compact cards: used in discard strip to prevent overlap */
+.card.compact .pip{ display:none; }
+.card.compact .corner.br{ display:none; }
+
+/* Make compact corner easier to read */
+.card.compact .corner{
+  padding:10px;
+  line-height:1;
+  gap:2px;
+}
+
+.card.compact .corner .rank{ font-size:18px; }
+.card.compact .corner .suit{ font-size:20px; }
+
+/* Give compact discard cards a bit more width so text doesn't feel cramped */
+.discardStrip .card.compact{
+  width:56px;
+}
+
 
