@@ -551,7 +551,7 @@ body{
 
 /* Bigger rank so it's readable, including "10" */
 .card.compact .miniRank{
-  font-size:24px;
+  font-size:22px;
   width:28px;           /* keeps "10" centered */
   text-align:center;
 }
