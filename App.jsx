@@ -288,19 +288,22 @@ function Card({ c, onClick, disabled, faceDown, small, highlight, dim, compact }
       type="button"
       title={`${c.r} of ${SUIT_NAMES[c.s]}`}
     >
-      <div className="corner tl">
-        <div className="rank">{c.r}</div>
-        <div className="suit">{c.s}</div>
-      </div>
+      {compact ? (
+        <div className="pip pipOnly">{c.s}</div>
+      ) : (
+        <>
+          <div className="corner tl">
+            <div className="rank">{c.r}</div>
+            <div className="suit">{c.s}</div>
+          </div>
 
-      {/* Hide center + bottom corner on compact cards (discard strip) */}
-      {!compact && <div className="pip">{c.s}</div>}
+          <div className="pip">{c.s}</div>
 
-      {!compact && (
-        <div className="corner br">
-          <div className="rank">{c.r}</div>
-          <div className="suit">{c.s}</div>
-        </div>
+          <div className="corner br">
+            <div className="rank">{c.r}</div>
+            <div className="suit">{c.s}</div>
+          </div>
+        </>
       )}
     </button>
   );
