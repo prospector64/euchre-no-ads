@@ -367,7 +367,7 @@ body{
   align-items:flex-start;
   gap:2px;
   font-weight:1000;
-  font-size:14px;
+  font-size:18px;
   line-height:1;
   padding:8px;
 }
@@ -385,7 +385,7 @@ body{
   inset:0;
   display:grid;
   place-items:center;
-  font-size:44px;
+  font-size:50px;
   opacity:.8;
 }
 .card.red .pip{ color:#c62323; }
@@ -551,7 +551,7 @@ body{
 
 /* Bigger rank so it's readable, including "10" */
 .card.compact .miniRank{
-  font-size:22px;
+  font-size:19px;
   width:28px;           /* keeps "10" centered */
   text-align:center;
 }
