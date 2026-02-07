@@ -479,4 +479,90 @@ body{
   color:#141414;
   border:1px solid rgba(0,0,0,.18);
 }
+/* ===== Card readability + no-overlap fix (esp. thin cards in Action box) ===== */
+
+/* Base corner: make rank + suit bigger + cleaner */
+.card .corner{
+  font-weight: 1000;
+  line-height: 1;        /* prevents the "stack drift" */
+  gap: 2px;
+}
+
+.card .corner .rank{
+  font-size: 16px;       /* larger rank */
+  letter-spacing: -0.5px;
+}
+
+.card .corner .suit{
+  font-size: 18px;       /* larger corner suit */
+}
+
+/* If your corner markup is just text (no .rank/.suit spans),
+   keep this as a fallback */
+.card .corner{
+  font-size: 16px;
+}
+
+/* ---------- THIN / MINI CARDS ---------- */
+/* You likely have a class like .slim, .mini, .thin etc.
+   Add whichever matches your JSX. This block covers common names.
+   If you only use one, you can delete the others. */
+.card.slim,
+.card.mini,
+.card.thin{
+  /* Give corners a little breathing room */
+  padding-top: 6px;
+  padding-bottom: 6px;
+  overflow: hidden; /* prevents any accidental bleed */
+}
+
+/* On skinny cards, show ONLY one corner (top-left) to stop overlap */
+.card.slim .corner.br,
+.card.mini .corner.br,
+.card.thin .corner.br{
+  display: none;
+}
+
+/* Keep top-left readable but not colliding */
+.card.slim .corner,
+.card.mini .corner,
+.card.thin .corner{
+  padding: 6px;
+  gap: 1px;
+}
+
+/* If you have separate spans, size them nicely on skinny cards */
+.card.slim .corner .rank,
+.card.mini .corner .rank,
+.card.thin .corner .rank{
+  font-size: 15px;
+}
+
+.card.slim .corner .suit,
+.card.mini .corner .suit,
+.card.thin .corner .suit{
+  font-size: 17px;
+}
+
+/* Center suit / pips: scale down so it doesn't clash with corners */
+.card.slim .pip,
+.card.mini .pip,
+.card.thin .pip{
+  transform: translate(-50%, -50%) scale(0.82);
+}
+
+/* If your center mark is a single element like .bigSuit, shrink it */
+.card.slim .bigSuit,
+.card.mini .bigSuit,
+.card.thin .bigSuit{
+  transform: translate(-50%, -50%) scale(0.82);
+}
+
+/* If your thin cards are used specifically inside the Action box,
+   this makes them slightly wider for readability without blowing layout. */
+.actionBox .card.slim,
+.actionBox .card.mini,
+.actionBox .card.thin{
+  width: 52px;   /* bump width a touch */
+}
 
