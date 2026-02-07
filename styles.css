@@ -367,7 +367,7 @@ body{
   align-items:flex-start;
   gap:2px;
   font-weight:1000;
-  font-size:14px;
+  font-size:16px;
   line-height:1;
   padding:8px;
 }
@@ -386,7 +386,7 @@ body{
   display:grid;
   place-items:center;
   font-size:44px;
-  opacity:.20;
+  opacity:.4;
 }
 .card.red .pip{ color:#c62323; }
 .card.black .pip{ color:#111; }
