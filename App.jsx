@@ -74,6 +74,76 @@ function legalCards(hand, trump, leadSuit) {
 }
 
 /** ---------- AI heuristics ---------- **/
+/** ---------- Bid helper utilities (no cheating) ---------- **/
+function relSeatToDealer(seat, dealer) {
+  return (seat - dealer + 4) % 4; // 0=dealer, 1=1st, 2=partner dealer, 3=3rd
+}
+
+function countTrump(hand, trumpSuit, upcard = null, includeUpcard = false) {
+  const cards = includeUpcard && upcard ? [...hand, upcard] : hand;
+  return cards.filter((c) => effectiveSuit(c, trumpSuit) === trumpSuit).length;
+}
+
+function hasRightOrLeftBower(hand, trumpSuit, upcard = null, includeUpcard = false) {
+  const cards = includeUpcard && upcard ? [...hand, upcard] : hand;
+  return cards.some((c) => isRightBower(c, trumpSuit) || isLeftBower(c, trumpSuit));
+}
+
+function offsuitPower(hand, trumpSuit) {
+  // quick-and-dirty: A=2, K=1, else 0 (only if not trump by effective suit)
+  let p = 0;
+  for (const c of hand) {
+    if (effectiveSuit(c, trumpSuit) === trumpSuit) continue;
+    if (c.r === "A") p += 2;
+    else if (c.r === "K") p += 1;
+  }
+  return p;
+}
+
+function isNextSuit(candidateSuit, upcardSuit) {
+  // "Next" = same color, not the upcard suit
+  return candidateSuit !== upcardSuit && sameColor(candidateSuit, upcardSuit);
+}
+
+// Seat-based thresholds tuned to allow "go around" sometimes.
+// You can adjust these later (small changes matter).
+function thresholdRound1(relSeat) {
+  // 0 dealer, 1 first seat, 2 partner dealer, 3 third seat
+  if (relSeat === 0) return 12.6; // dealer can order lighter (pickup/discard)
+  if (relSeat === 2) return 12.8; // partner dealer can help
+  if (relSeat === 1) return 13.1; // first seat moderate
+  return 13.9; // third seat tight
+}
+
+function thresholdRound2(relSeat, nextSuit, mustPick) {
+  if (mustPick) return -Infinity; // must call
+  // Round 2 should be tighter than Round 1 in general, except "Next"
+  let t = nextSuit ? 8.9 : 9.7;
+
+  // third seat should still be tight
+  if (relSeat === 3) t += 0.6;
+
+  // dealer slightly looser (can often manage)
+  if (relSeat === 0) t -= 0.2;
+
+  return t;
+}
+
+// Add human-like variance only near the threshold.
+// If score barely clears, sometimes pass.
+function borderlinePassChance(scoreMinusThresh, relSeat) {
+  // scoreMinusThresh = score - threshold
+  if (scoreMinusThresh >= 1.2) return 0; // clearly strong: never pass
+  if (scoreMinusThresh <= 0) return 1;   // below threshold: always pass
+
+  // between (0, 1.2): pass some % depending on seat
+  // third seat passes more near the line
+  const base = relSeat === 3 ? 0.55 : relSeat === 0 ? 0.25 : 0.35;
+  // closer to threshold => higher pass chance
+  const closeness = 1 - scoreMinusThresh / 1.2; // 1 near threshold, 0 when strong
+  return Math.min(0.85, Math.max(0.05, base * (0.6 + 0.8 * closeness)));
+}
+
 function handStrengthForTrump(hand, trump) {
   let score = 0;
 
@@ -145,6 +215,7 @@ function dealerBestPickupStrength(hand, upcard, trumpSuit) {
   return best;
 }
 
+
 function bestSuitChoice(hand, forbiddenSuit) {
   let best = null;
   let bestScore = -Infinity;
@@ -156,34 +227,98 @@ function bestSuitChoice(hand, forbiddenSuit) {
   return { suit: best, score: bestScore };
 }
 
-function shouldOrderUp(hand, upSuit, seatIsDealer, seatIsPartnerDealer, upcard) {
-  // If I'm the dealer, evaluate strength AFTER pickup + best discard
+function shouldOrderUp(hand, upSuit, seat, dealer, upcard) {
+  const rel = relSeatToDealer(seat, dealer);
+  const seatIsDealer = rel === 0;
+  const seatIsPartnerDealer = rel === 2;
+
+  // Evaluate strength (dealer considers pickup+discard)
   const sc = seatIsDealer
     ? dealerBestPickupStrength(hand, upcard, upSuit)
     : handStrengthForTrump(hand, upSuit);
 
-  // (Optional) a quick trump-count shortcut still works, but for dealer
-  // it's better to do it on the best 5-card outcome.
-  if (!seatIsDealer) {
-    const trumpCount = hand.filter((c) => effectiveSuit(c, upSuit) === upSuit).length;
-    if (trumpCount >= 3) return true;
-  }
+  // Basic "sanity gate": stop silly light orders
+  // Allow if: 3+ trump OR bower+2 trump OR decent offsuit support with 2 trump
+  const tc = seatIsDealer
+    ? countTrump(hand, upSuit, upcard, true) // dealer can include upcard for a rough trump count
+    : countTrump(hand, upSuit);
 
-  // Your rule: partner dealing => slightly looser; opponent dealing => tighter
-  const threshold = seatIsPartnerDealer ? 12.8 : 13.2;
+  const hasBower = seatIsDealer
+    ? hasRightOrLeftBower(hand, upSuit, upcard, true)
+    : hasRightOrLeftBower(hand, upSuit);
 
-  // Dealer can (usually) order slightly lighter due to pickup+discard improving shape.
-  // You can tune this number; -0.4 is a mild nudge.
-  const dealerBonus = seatIsDealer ? 0.4 : 0;
+  const off = offsuitPower(hand, upSuit);
 
-  return sc >= (threshold - dealerBonus);
+  const passesSanity =
+    tc >= 3 ||
+    (tc >= 2 && hasBower) ||
+    (tc >= 2 && off >= 3) || // e.g., two aces or ace+king
+    (seatIsDealer && tc >= 2); // dealer can justify lighter
+
+  if (!passesSanity) return false;
+
+  // Seat-based threshold (partner-dealer is slightly looser already via table)
+  let thresh = thresholdRound1(rel);
+
+  // Keep your original "partner dealer slightly looser / opponent dealer tighter" spirit:
+  // If partner is dealer, encourage ordering; if opponent is dealer, be a touch tighter.
+  // (This is small—seat thresholds handle most of it.)
+  if (seatIsPartnerDealer) thresh -= 0.15;
+
+  const margin = sc - thresh;
+
+  // Human-ish randomness near the threshold
+  const passProb = borderlinePassChance(margin, rel);
+  if (Math.random() < passProb) return false;
+
+  return margin >= 0;
 }
 
+function shouldCallSuitRound2(hand, forbiddenSuit, mustPick, seat, dealer, upcard) {
+  const rel = relSeatToDealer(seat, dealer);
 
-function shouldCallSuitRound2(hand, forbiddenSuit, mustPick) {
   const { suit, score } = bestSuitChoice(hand, forbiddenSuit);
+
+  if (!suit) return { call: false, suit: null, score: -Infinity };
+
   if (mustPick) return { call: true, suit, score };
-  return { call: score >= 8.3, suit, score };
+
+  const nextSuit = isNextSuit(suit, upcard.s);
+  const thresh = thresholdRound2(rel, nextSuit, mustPick);
+
+  const tc = countTrump(hand, suit);
+  const hasBower = hasRightOrLeftBower(hand, suit);
+  const off = offsuitPower(hand, suit);
+
+  // Sanity gates (prevents nonsense calls):
+  // - third seat: require real power
+  // - non-next: require stronger structure
+  if (rel === 3) {
+    const okThird =
+      tc >= 3 ||
+      (tc >= 2 && hasBower) ||
+      (hasBower && off >= 2); // bower + an ace is acceptable
+    if (!okThird) return { call: false, suit, score };
+  }
+
+  if (!nextSuit) {
+    const okNonNext =
+      tc >= 3 ||
+      (tc >= 2 && hasBower) ||
+      (tc >= 2 && off >= 4); // need more outside help if no bower
+    if (!okNonNext) return { call: false, suit, score };
+  } else {
+    // "Next" can be a little lighter, but still avoid total trash
+    const okNext = tc >= 2 || off >= 4 || hasBower;
+    if (!okNext) return { call: false, suit, score };
+  }
+
+  const margin = score - thresh;
+
+  const passProb = borderlinePassChance(margin, rel);
+  if (Math.random() < passProb) return { call: false, suit, score };
+
+  return { call: margin >= 0, suit, score };
 }
 
 /** Stricter loner heuristic (rare) */
@@ -812,7 +947,7 @@ setCooldown();
   const seatIsDealer = turn === dealer;
   const seatIsPartnerDealer = turn === (dealer + 2) % 4;
 
-  if (shouldOrderUp(hand, upcard.s, seatIsDealer, seatIsPartnerDealer, upcard)) {
+  if (shouldOrderUp(hand, upcard.s, turn, dealer, upcard)) {
     const alone = shouldGoAlone_STRICT(hand, upcard.s, seatIsDealer, upcard, true);
     orderUp(alone);
   } else pass();
@@ -825,7 +960,7 @@ setCooldown();
       const mustPick = forcedDealerPick && turn === dealer;
       const seatIsDealer = turn === dealer;
 
-      const res = shouldCallSuitRound2(hand, upcard.s, mustPick);
+      const res = shouldCallSuitRound2(hand, upcard.s, mustPick, turn, dealer, upcard);
       if (res.call) {
         const alone = shouldGoAlone_STRICT(hand, res.suit, seatIsDealer, upcard, false);
         callSuit(res.suit, alone);
