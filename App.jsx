@@ -76,16 +76,73 @@ function legalCards(hand, trump, leadSuit) {
 /** ---------- AI heuristics ---------- **/
 function handStrengthForTrump(hand, trump) {
   let score = 0;
+
+  // count suits for shape
+  const suitCounts = { "♠": 0, "♥": 0, "♦": 0, "♣": 0 };
+  let trumpCount = 0;
+
   for (const c of hand) {
-    if (isRightBower(c, trump)) score += 9;
-    else if (isLeftBower(c, trump)) score += 7;
-    else if (effectiveSuit(c, trump) === trump) score += 2 + (rankOrder[c.r] ?? 0) * 0.35;
-    else {
-      if (c.r === "A") score += 1.2;
-      if (c.r === "K") score += 0.4;
+    const eff = effectiveSuit(c, trump);
+    suitCounts[eff] = (suitCounts[eff] ?? 0) + 1;
+
+    if (isRightBower(c, trump)) {
+      score += 9.2;
+      trumpCount += 1;
+      continue;
+    }
+    if (isLeftBower(c, trump)) {
+      score += 7.4;
+      trumpCount += 1;
+      continue;
+    }
+
+    if (eff === trump) {
+      trumpCount += 1;
+      // stronger non-bower trump than before
+      score += 2.4 + (rankOrder[c.r] ?? 0) * 0.40;
+    } else {
+      // smoother offsuit scale
+      const off = c.r === "A" ? 1.3
+               : c.r === "K" ? 0.7
+               : c.r === "Q" ? 0.4
+               : c.r === "J" ? 0.25
+               : c.r === "10" ? 0.15
+               : 0.10;
+      score += off;
     }
   }
+
+  // trump length bonus
+  if (trumpCount === 3) score += 0.8;
+  else if (trumpCount === 4) score += 1.8;
+  else if (trumpCount === 5) score += 3.0;
+
+  // short-suit bonus (excluding trump suit count; we used effective suits so trump is lumped already)
+  // Reward having singletons/voids among non-trump suits.
+  for (const s of SUITS) {
+    if (s === trump) continue;
+    const n = suitCounts[s] ?? 0;
+    if (n === 0) score += 0.9;
+    else if (n === 1) score += 0.5;
+  }
+
   return score;
+}
+
+/** Dealer-only: evaluate ordering up by considering pickup + best discard.
+ * We assume the dealer will discard the card that maximizes strength for trump.
+ */
+function dealerBestPickupStrength(hand, upcard, trumpSuit) {
+  const six = [...hand, upcard]; // 6 cards before discard
+  let best = -Infinity;
+
+  for (let i = 0; i < six.length; i++) {
+    const five = six.filter((_, idx) => idx !== i); // discard i
+    const sc = handStrengthForTrump(five, trumpSuit);
+    if (sc > best) best = sc;
+  }
+
+  return best;
 }
 
 function bestSuitChoice(hand, forbiddenSuit) {
@@ -99,22 +156,29 @@ function bestSuitChoice(hand, forbiddenSuit) {
   return { suit: best, score: bestScore };
 }
 
-/** Make bots pass more often (so upcard is NOT always ordered) */
-function shouldOrderUp(hand, upSuit, seatIsDealer, seatIsPartnerDealer) {
-  const trumpCount = hand.filter((c) => effectiveSuit(c, upSuit) === upSuit).length;
-  if (trumpCount >= 3) return true;
+function shouldOrderUp(hand, upSuit, seatIsDealer, seatIsPartnerDealer, upcard) {
+  // If I'm the dealer, evaluate strength AFTER pickup + best discard
+  const sc = seatIsDealer
+    ? dealerBestPickupStrength(hand, upcard, upSuit)
+    : handStrengthForTrump(hand, upSuit);
 
-  const sc = handStrengthForTrump(hand, upSuit);
+  // (Optional) a quick trump-count shortcut still works, but for dealer
+  // it's better to do it on the best 5-card outcome.
+  if (!seatIsDealer) {
+    const trumpCount = hand.filter((c) => effectiveSuit(c, upSuit) === upSuit).length;
+    if (trumpCount >= 3) return true;
+  }
 
   // Your rule: partner dealing => slightly looser; opponent dealing => tighter
   const threshold = seatIsPartnerDealer ? 12.8 : 13.2;
 
-  // (Optional) if YOU are the dealer and thinking about picking it up,
-  // you can make it slightly looser or keep it aligned. I'd keep it aligned:
-  // const threshold = seatIsPartnerDealer ? 12.8 : 13.2;
+  // Dealer can (usually) order slightly lighter due to pickup+discard improving shape.
+  // You can tune this number; -0.4 is a mild nudge.
+  const dealerBonus = seatIsDealer ? 0.4 : 0;
 
-  return sc >= threshold;
+  return sc >= (threshold - dealerBonus);
 }
+
 
 function shouldCallSuitRound2(hand, forbiddenSuit, mustPick) {
   const { suit, score } = bestSuitChoice(hand, forbiddenSuit);
@@ -744,16 +808,17 @@ setCooldown();
     }
 
     if (phase === "bid1") {
-      const hand = hands[turn];
-      const seatIsDealer = turn === dealer;
-      const seatIsPartnerDealer = turn === (dealer + 2) % 4;
+  const hand = hands[turn];
+  const seatIsDealer = turn === dealer;
+  const seatIsPartnerDealer = turn === (dealer + 2) % 4;
 
-      if (shouldOrderUp(hand, upcard.s, seatIsDealer, seatIsPartnerDealer)) {
-        const alone = shouldGoAlone_STRICT(hand, upcard.s, seatIsDealer, upcard, true);
-        orderUp(alone);
-      } else pass();
-      return;
-    }
+  if (shouldOrderUp(hand, upcard.s, seatIsDealer, seatIsPartnerDealer, upcard)) {
+    const alone = shouldGoAlone_STRICT(hand, upcard.s, seatIsDealer, upcard, true);
+    orderUp(alone);
+  } else pass();
+  return;
+}
+
 
     if (phase === "bid2") {
       const hand = hands[turn];
