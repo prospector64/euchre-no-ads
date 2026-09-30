@@ -551,3 +551,197 @@ button:disabled { cursor: default; }
   :root { --w-lg: clamp(50px, 13vw, 76px); --w-md: clamp(42px, 11vw, 62px); }
   .center { padding-top: 50px; }
 }
+
+/* =========================================================
+   Home screen
+   ========================================================= */
+.home {
+  min-height: 100dvh;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 40px) 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.homeTitle { margin: 0; font-size: 36px; font-weight: 900; letter-spacing: -0.02em; }
+.homeSub { margin: 0 0 16px; color: var(--muted); font-size: 16px; }
+.gameTiles { display: grid; gap: 14px; }
+.gameTile {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--stroke);
+  background: radial-gradient(ellipse at 20% 50%, var(--felt-hi), var(--felt) 60%, var(--felt-lo));
+  box-shadow: var(--shadow);
+  text-align: left;
+  transition: transform 0.12s;
+}
+.gameTile:active { transform: scale(0.98); }
+@media (hover: hover) { .gameTile:hover { transform: translateY(-2px); } }
+.tileFan { position: relative; flex: none; width: 92px; height: 70px; }
+.tileFan .card { position: absolute; left: 22px; top: 2px; }
+.tileFan .fan0 { transform: rotate(-16deg) translateX(-16px); }
+.tileFan .fan1 { transform: rotate(0deg); }
+.tileFan .fan2 { transform: rotate(16deg) translateX(16px); }
+.tileText { display: grid; gap: 4px; min-width: 0; }
+.tileName { font-size: 24px; font-weight: 900; }
+.tileBlurb { font-size: 14px; color: rgba(255, 255, 255, 0.8); line-height: 1.35; }
+.tileResume { font-size: 13px; font-weight: 800; color: var(--gold); }
+
+/* =========================================================
+   Hearts
+   ========================================================= */
+.heartsTitle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 5px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  text-align: left;
+}
+.htName { font-size: 17px; font-weight: 900; }
+.htMeta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.heartsState { font-size: 13px; color: var(--muted); font-weight: 700; }
+.heartsState.broken { color: #ff8a8a; }
+
+.hSeat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  z-index: 2;
+  max-width: 124px;
+}
+.hSeat.active .plate {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(93, 214, 255, 0.25), 0 0 18px rgba(93, 214, 255, 0.45);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.heartsTable .plate { padding: 4px 6px 4px 9px; font-size: 13px; gap: 5px; }
+.seatScore {
+  flex: none;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.seatScore.danger, td.danger { color: #ff9b9b; }
+.seatScore.danger { background: rgba(255, 90, 90, 0.25); }
+.cardCount { font-size: 11px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.passedTick { font-size: 11px; color: var(--good); font-weight: 800; white-space: nowrap; }
+.ptsBadge { display: inline-flex; gap: 4px; font-size: 11px; font-weight: 900; }
+.ptsHearts { color: #ff8a8a; }
+.ptsQueen { padding: 0 4px; border-radius: 4px; background: var(--card); color: var(--card-black); }
+
+.hSlot { position: absolute; transform: translate(-50%, -50%); z-index: 1; }
+.hCenter {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.hCenter button { pointer-events: auto; }
+.lastBtn.inline { position: static; transform: none; }
+.passBanner {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  animation: pop 0.25s ease-out;
+}
+.pbDir { font-size: 22px; font-weight: 900; }
+.pbSub { font-size: 13px; color: var(--muted); font-weight: 700; }
+.leftoverPile { display: grid; place-items: center; gap: 6px; }
+.lpCards { position: relative; display: grid; }
+.lpCards > * { grid-area: 1 / 1; }
+.lpLabel { font-size: 10px; font-weight: 800; color: var(--muted); text-align: center; max-width: 90px; line-height: 1.2; }
+
+.heartsHand { flex-direction: column; align-items: stretch; gap: 0; min-height: 0; padding-top: 14px; }
+.handRow { display: flex; justify-content: center; align-items: flex-end; }
+.handRow .card + .card { margin-left: var(--ov); }
+.heartsHand.twoRows .handRow + .handRow { margin-top: calc(var(--w-lg) * -0.7); }
+.heartsHand .card { box-shadow: -3px 2px 8px rgba(0, 0, 0, 0.35); }
+
+.leftoverReveal { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; font-size: 14px; }
+.lrCards { display: inline-flex; gap: 4px; }
+.scoreTable { width: 100%; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }
+.scoreTable th { font-size: 12px; color: var(--muted); font-weight: 800; padding: 4px 6px; text-align: right; }
+.scoreTable td { padding: 6px; text-align: right; border-top: 1px solid var(--stroke); }
+.scoreTable td:first-child, .scoreTable th:first-child { text-align: left; }
+.scoreTable tr.me td { color: var(--accent); font-weight: 800; }
+.scoreTable tr.loser td { color: var(--bad); font-weight: 900; }
+.scoreTable .totalRow td { font-weight: 900; border-top: 2px solid var(--stroke); }
+.scoreScroll { overflow-x: auto; }
+.sheetTable th, .sheetTable td { text-align: center; white-space: nowrap; }
+.sheetTable td:first-child, .sheetTable th:first-child { text-align: center; }
+
+.numInput {
+  width: 76px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+}
+.btnRow .seg { flex: 1; }
+.pendingNote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 213, 74, 0.12);
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+}
+.chipGrid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.chipBtn {
+  padding: 8px 14px;
+  min-height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.chipBtn.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.chipBtn.check.on { background: rgba(93, 214, 255, 0.18); color: var(--accent); border-color: var(--accent); }
+.chipBtn:disabled, .seg button:disabled { opacity: 0.35; }
+.toggle.block { display: flex; width: 100%; margin-bottom: 8px; }
+.nameGrid { margin-top: 10px; }
+
+@media (min-width: 1000px) and (min-height: 760px) {
+  .heartsTable .plate { font-size: 16px; padding: 6px 12px; }
+  .hSeat { max-width: 150px; }
+  .seatScore { font-size: 14px; }
+}
+.hand .card.dim { opacity: 1; filter: brightness(0.55) saturate(0.5); }
+.card.fresh { border: 2px solid var(--gold); box-shadow: 0 0 10px rgba(255, 213, 74, 0.6); }
+.heartsTable.n5 .hSlot, .heartsTable.n6 .hSlot { --w-md: clamp(42px, 12.5vw, 80px); }

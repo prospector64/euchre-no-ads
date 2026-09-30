@@ -384,7 +384,7 @@ export function applyAction(state, a) {
       s.trick = [];
       const w = s.trickWinner;
       s.trickWinner = null;
-      if (s.trickNo === 5) scoreHand(s);
+      if (s.hands.every((h, seat) => h.length === 0 || seat === sittingOut(s))) scoreHand(s);
       else {
         s.phase = "playing";
         s.turn = w;
