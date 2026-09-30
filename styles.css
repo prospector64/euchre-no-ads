@@ -531,6 +531,22 @@ button:disabled { cursor: default; }
   .seat-left, .seat-right { max-width: 120px; }
   .prompt { font-size: 15px; }
 }
+@media (min-width: 1000px) and (min-height: 760px) {
+  :root { --w-lg: 104px; --w-md: 96px; }
+  .app { max-width: 1060px; padding-left: 20px; padding-right: 20px; }
+  .center { padding: 80px 150px 20px; }
+  .trickArea { gap: 8px 28px; }
+  .plate { font-size: 17px; padding: 7px 14px; }
+  .seat-left { left: 16px; }
+  .seat-right { right: 16px; }
+  .miniBack { width: 12px; height: 17px; }
+  .bubble { font-size: 14px; }
+  .teamName { font-size: 14px; }
+  .teamScore { font-size: 28px; }
+  .statusStrip { font-size: 16px; }
+  .prompt { font-size: 17px; }
+  .hand { gap: 14px; }
+}
 @media (max-height: 640px) {
   :root { --w-lg: clamp(50px, 13vw, 76px); --w-md: clamp(42px, 11vw, 62px); }
   .center { padding-top: 50px; }
