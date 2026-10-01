@@ -766,3 +766,122 @@ button:disabled { cursor: default; }
   border: 1px solid rgba(255, 255, 255, 0.7);
 }
 .fdName { color: var(--gold); }
+
+/* =========================================================
+   Rummy 500
+   ========================================================= */
+.rummyTable {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  overflow: hidden;
+}
+.rOpps { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.rOpp { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.rOpp.active .plate {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(93, 214, 255, 0.25), 0 0 18px rgba(93, 214, 255, 0.45);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.rummyTable .plate { padding: 4px 8px; font-size: 13px; gap: 5px; }
+.ownerDot { flex: none; width: 9px; height: 9px; border-radius: 999px; }
+.laidPts { font-size: 11px; font-weight: 800; color: var(--good); white-space: nowrap; }
+.lastAction {
+  min-height: 18px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meldArea {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  justify-content: center;
+  gap: 8px 10px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.12);
+}
+.meldEmpty { margin: auto; font-size: 13px; color: rgba(255, 255, 255, 0.35); font-weight: 700; }
+.meld {
+  display: flex;
+  padding: 4px 6px 6px;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  background: rgba(0, 0, 0, 0.18);
+}
+.meld:disabled { cursor: default; }
+.meld.target {
+  border-color: var(--gold);
+  box-shadow: 0 0 14px rgba(255, 213, 74, 0.55);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.meldCard { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.meldCard + .meldCard { margin-left: calc(var(--w-sm) * -0.45); }
+.ownerBar { width: 70%; height: 3px; border-radius: 2px; }
+
+.piles { display: flex; align-items: center; gap: 10px; padding-top: 2px; }
+.stockPile {
+  position: relative;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+}
+.stockPile.ready .card { box-shadow: 0 0 0 3px var(--accent), 0 0 16px rgba(93, 214, 255, 0.6); }
+.pileCount {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  min-width: 22px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: #0b1020;
+  border: 1px solid var(--stroke);
+  font-size: 11px;
+  font-weight: 900;
+}
+.emptyPile {
+  display: grid;
+  place-items: center;
+  width: var(--w-sm);
+  aspect-ratio: 5 / 7;
+  border-radius: 7px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.3);
+  font-size: 10px;
+  color: var(--muted);
+}
+.discardSpread {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow-x: auto;
+  padding: 10px 4px 4px;
+  scrollbar-width: none;
+}
+.discardSpread::-webkit-scrollbar { display: none; }
+.dCard { flex: none; padding: 0; border: 0; background: none; border-radius: 7px; transition: transform 0.12s; }
+.dCard + .dCard { margin-left: calc(var(--w-sm) * -0.5); }
+.dCard:not(:disabled):hover { transform: translateY(-6px); }
+.dCard.picked { transform: translateY(-8px); }
+.dCard.picked .card { box-shadow: 0 0 0 2px var(--gold); }
+.dCard.bottom .card { box-shadow: 0 0 0 3px var(--gold), 0 0 14px rgba(255, 213, 74, 0.7); }
+
+.rummy .meRow { position: relative; }
+.sortBtn { margin-left: auto; text-transform: capitalize; }
+
+@media (min-width: 1000px) and (min-height: 760px) {
+  .rummyTable { --w-sm: 66px; }
+  .rummyTable .plate { font-size: 16px; padding: 6px 12px; }
+}
+.app.rummy { grid-template-rows: auto 1fr auto auto; }

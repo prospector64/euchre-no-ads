@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import EuchreApp from "./EuchreApp.jsx";
 import HeartsApp from "./HeartsApp.jsx";
+import RummyApp from "./RummyApp.jsx";
 import { Card, load } from "./ui.jsx";
 
 const GAMES = [
@@ -17,6 +18,13 @@ const GAMES = [
     blurb: "3–6 players. Dodge the hearts and the Q♠. Hit the limit and you lose.",
     cards: [{ r: "Q", s: "♠" }, { r: "A", s: "♥" }, { r: "2", s: "♣" }],
     saveKey: "hearts.game.v1",
+  },
+  {
+    id: "rummy",
+    name: "Rummy 500",
+    blurb: "2–4 players. Lay down sets and runs, play off the table, dig the discards. First to 500.",
+    cards: [{ r: "7", s: "♦" }, { r: "8", s: "♦" }, { r: "9", s: "♦" }],
+    saveKey: "rummy.game.v1",
   },
 ];
 
@@ -63,5 +71,6 @@ export default function App() {
 
   if (route === "euchre") return <EuchreApp onHome={() => go("")} />;
   if (route === "hearts") return <HeartsApp onHome={() => go("")} />;
+  if (route === "rummy") return <RummyApp onHome={() => go("")} />;
   return <Home onPick={go} />;
 }

@@ -1,6 +1,6 @@
 # Card Night (No Ads)
 
-Euchre and Hearts against bots, in the browser. Pick a game from the home screen.
+Euchre, Hearts and Rummy 500 against bots, in the browser. Pick a game from the home screen.
 
 ## Files
 
@@ -8,6 +8,7 @@ Euchre and Hearts against bots, in the browser. Pick a game from the home screen
 - `ui.jsx`: shared pieces (cards, pop-ups, saving).
 - `engine.js` / `ai.js` / `EuchreApp.jsx`: Euchre rules, bots and screen.
 - `hearts-engine.js` / `hearts-ai.js` / `HeartsApp.jsx`: Hearts rules, bots and screen.
+- `rummy-engine.js` / `rummy-ai.js` / `RummyApp.jsx`: Rummy 500 rules, bots and screen.
 
 The bots only use what a person at the table would know: their own cards, what's been played, and who has run out of a suit.
 
@@ -33,3 +34,12 @@ npm run dev
 ```
 
 Cloudflare Pages builds with `npm run build` and serves the `dist` folder.
+
+## Rummy 500 house rules
+
+- **2 players** (13 cards each) by default, or 3–4 players (7 cards each).
+- **Melds:** 3 or 4 of a kind, or 3+ in a row of one suit. Ace is high or low, but no wrap-around (K-A-2).
+- **Laying down is optional.** Anyone can play single cards off any meld on the table. Melds can't be rearranged once they're down.
+- **Discard pile:** take as deep as you like, but you must play the bottom card you took that same turn.
+- **You must discard to go out.**
+- **Scoring:** aces 15, 10/J/Q/K 10, 2–9 are 5. You score what you've laid down, minus what's left in your hand. First to 500.
