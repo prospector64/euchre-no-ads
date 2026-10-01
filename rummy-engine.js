@@ -132,7 +132,39 @@ export function allMelds(pool) {
  */
 export function canUse(card, pool, melds) {
   if (pool.length >= 2 && canLayOff(card, melds)) return true;
+  if (layoffChain(card, pool, melds)) return true;
   return allMelds(pool).some((m) => m.length < pool.length && m.some((c) => sameCard(c, card)));
+}
+
+/**
+ * Cards from `pool` that would have to go on a run first so `card` can follow them,
+ * e.g. the table has A-4♦, you hold the 5♦, so the 6♦ fits once the 5♦ is played.
+ * Returns [{ card, meldId }] in play order (ending with `card` itself), or null.
+ * Only counts if a card is still left over to discard.
+ */
+export function layoffChain(card, pool, melds) {
+  let best = null;
+  for (const m of melds) {
+    if (m.type !== "run" || m.suit !== card.s) continue;
+    const positions = card.r === "A" ? [1, 14] : [rankNum(card)];
+    for (const p of positions) {
+      let between = [];
+      if (p > m.hi + 1) for (let x = m.hi + 1; x < p; x++) between.push(x);
+      else if (p < m.lo - 1) for (let x = m.lo - 1; x > p; x--) between.push(x);
+      else continue;
+      const steps = [];
+      for (const x of between) {
+        const c = pool.find((h) => h.s === card.s && (x === 1 || x === 14 ? h.r === "A" : rankNum(h) === x));
+        if (!c) break;
+        steps.push({ card: c, meldId: m.id });
+      }
+      if (steps.length !== between.length) continue;
+      steps.push({ card, meldId: m.id });
+      if (steps.length > pool.length - 1) continue; // must keep a card to discard
+      if (!best || steps.length < best.length) best = steps;
+    }
+  }
+  return best;
 }
 
 /** Value of a group of melded cards. */

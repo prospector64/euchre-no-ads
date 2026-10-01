@@ -12,6 +12,7 @@ import {
   layoffPos,
   canLayOff,
   canUse,
+  layoffChain,
   bestMelds,
   allMelds,
   checkMeld,
@@ -68,6 +69,9 @@ function useCard(state, seat, card) {
   // Fall back to any meld containing it
   const any = allMelds(hand).find((m) => m.some((c) => sameCard(c, card)) && hand.length - m.length >= 1);
   if (any) return { type: "meld", seat, cards: any };
+  // Play the in-between cards first (e.g. the 5♦ so the picked-up 6♦ can follow)
+  const chain = layoffChain(card, hand, state.melds);
+  if (chain) return { type: "layoff", seat, card: chain[0].card, meldId: chain[0].meldId };
   return null;
 }
 

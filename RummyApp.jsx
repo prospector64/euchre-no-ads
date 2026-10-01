@@ -11,6 +11,7 @@ import {
   checkMeld,
   layoffPos,
   canUse,
+  layoffChain,
   playedValue,
   handValue,
 } from "./rummy-engine.js";
@@ -177,7 +178,14 @@ export default function RummyApp({ onHome }) {
     }
   } else if (myTurn && phase === "play") {
     if (game.mustPlay && !selCards.length) {
-      prompt = `Play the ${cardLabel(game.mustPlay)} you picked up: lay it down in a meld or play it off the table.`;
+      const direct = handLen >= 2 && melds.some((m) => layoffPos(game.mustPlay, m) !== null);
+      const chain = direct ? null : layoffChain(game.mustPlay, game.hands[ME], melds);
+      prompt = chain && chain.length > 1
+        ? `Play the ${cardLabel(game.mustPlay)} you picked up: first play ${chain
+            .slice(0, -1)
+            .map((x) => cardLabel(x.card))
+            .join(", then ")} off the table, then the ${cardLabel(game.mustPlay)}.`
+        : `Play the ${cardLabel(game.mustPlay)} you picked up: lay it down in a meld or play it off the table.`;
     } else if (!selCards.length) {
       prompt = "Tap cards to lay down a meld, play a card off the table, or discard to end your turn.";
     } else if (selCards.length === 1) {
