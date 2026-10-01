@@ -217,6 +217,19 @@ function deal(prev, rules) {
   return s;
 }
 
+/** Move on from a round-1 turn that didn't order up (a pass or taking the bottoms). */
+function endRound1Turn(s, seat) {
+  if (seat === s.dealer) {
+    s.phase = "bid2";
+    s.upcardDown = true;
+    s.bids = ["", "", "", ""];
+    s.turn = (s.dealer + 1) % 4;
+    addLog(s, `${cardLabel(s.upcard)} turned down`, "bid");
+  } else {
+    s.turn = (seat + 1) % 4;
+  }
+}
+
 function startPlay(s) {
   s.phase = "playing";
   s.bids = s.bids.map((b, i) => (i === s.maker ? b : ""));
@@ -276,6 +289,8 @@ export function applyAction(state, a) {
       s.bottoms = { seat: a.seat, shown: a.cards };
       s.bids[a.seat] = "Bottoms!";
       addLog(s, `{${a.seat}} shows ${a.cards.map(cardLabel).join(" ")} and takes the bottoms`, "bid");
+      // Taking the bottoms uses up your round-1 turn: no ordering up after it
+      endRound1Turn(s, a.seat);
       return s;
     }
     case "pass": {
@@ -284,15 +299,7 @@ export function applyAction(state, a) {
         const s = structuredClone(state);
         s.bids[a.seat] = "Pass";
         addLog(s, `{${a.seat}} passes`, "bid");
-        if (a.seat === s.dealer) {
-          s.phase = "bid2";
-          s.upcardDown = true;
-          s.bids = ["", "", "", ""];
-          s.turn = (s.dealer + 1) % 4;
-          addLog(s, `${cardLabel(s.upcard)} turned down`, "bid");
-        } else {
-          s.turn = (a.seat + 1) % 4;
-        }
+        endRound1Turn(s, a.seat);
         return s;
       }
       if (state.phase === "bid2") {

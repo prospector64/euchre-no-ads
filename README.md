@@ -14,7 +14,7 @@ The bots only use what a person at the table would know: their own cards, what's
 ## Euchre house rules
 
 - **Stick the dealer:** if everyone passes twice, the dealer must name trump.
-- **Bottoms (farmer's hand):** on your first turn to bid, three 9s or three 10s can be traded for the three face-down cards under the upcard. You can switch this off or allow any mix of 9s and 10s in Settings.
+- **Bottoms (farmer's hand):** on your first turn to bid, three 9s or three 10s can be traded for the three face-down cards under the upcard. That uses up your round-1 turn (no ordering up), but you still get your turn in round 2. You can switch this off or allow any mix of 9s and 10s in Settings.
 - **Going alone:** if your partner is the dealer, the upcard isn't picked up.
 
 ## Hearts house rules

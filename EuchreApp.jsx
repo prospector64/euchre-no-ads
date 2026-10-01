@@ -215,7 +215,7 @@ export default function EuchreApp({ onHome }) {
     );
   } else if (phase === "bid1") {
     if (myTurn && bottomsPick) {
-      prompt = "Tap 3 cards to trade for the bottoms.";
+      prompt = "Tap 3 cards to trade for the bottoms. This uses up your turn.";
       actions = (
         <div className="btnRow">
           <button className="btn primary" type="button" disabled={!pickValid} onClick={() => act({ type: "bottoms", cards: pickedCards })}>
@@ -553,7 +553,8 @@ export default function EuchreApp({ onHome }) {
             </div>
             <p className="help">
               Dealt a junk hand? On your first turn to bid, you can show three 9s or three 10s
-              and trade them for the three face-down cards under the upcard. Then you bid as normal.
+              and trade them for the three face-down cards under the upcard. That uses up your turn,
+              so you can't order it up, but you still get your turn in round 2.
               Only one player can take the bottoms each hand. Changes apply from the next deal.
             </p>
           </div>

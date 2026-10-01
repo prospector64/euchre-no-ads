@@ -91,7 +91,7 @@ export function bestDiscard(six, t) {
 /** How many tricks we can expect from partner, given what they've shown in bidding. */
 function partnerTricks(state, seat) {
   const p = partnerOf(seat);
-  return state.bids[p] === "Pass" ? 0.4 : 0.55;
+  return state.bids[p] === "Pass" || state.bids[p] === "Bottoms!" ? 0.4 : 0.55;
 }
 
 /** Scoreboard pressure: humans stretch when opponents are close to winning. */

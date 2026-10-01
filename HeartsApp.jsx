@@ -90,6 +90,16 @@ function PointsBadge({ cards }) {
   );
 }
 
+/** Marks whoever won the face-down cards; their points stay hidden until the hand ends. */
+function FaceDownBadge({ count }) {
+  return (
+    <span className="fdBadge" title={`Has the ${count} face-down card${count > 1 ? "s" : ""} — points unknown until the hand ends`}>
+      <span className="fdBack" />
+      <span>?×{count}</span>
+    </span>
+  );
+}
+
 export default function HeartsApp({ onHome }) {
   const [settings, setSettings] = useState(loadSettings);
   const [game, dispatch] = useReducer(applyAction, undefined, initialGame);
@@ -152,6 +162,7 @@ export default function HeartsApp({ onHome }) {
   // Points each player has visibly taken (face-down extras stay hidden until the hand ends)
   const visibleTaken = (seat) =>
     game.taken[seat].filter((c) => !(game.leftoverTaker === seat && game.leftover.some((x) => sameCard(x, c))));
+  const hasFaceDown = (seat) => inHand && seat !== null && game.leftover.length > 0 && game.leftoverTaker === seat;
 
   const passWho = (() => {
     if (game.passDir === "random") return "to a random pile";
@@ -272,6 +283,11 @@ export default function HeartsApp({ onHome }) {
               {game.trickNo === 0 && game.leftover.length > 0 && (
                 <span className="muted"> · {game.leftover.length} face down → trick 1</span>
               )}
+              {hasFaceDown(game.leftoverTaker) && (
+                <span className="muted">
+                  {" "}· face down → <b className="fdName">{game.leftoverTaker === ME ? "you" : names[game.leftoverTaker]}</b>
+                </span>
+              )}
             </>
           )}
         </span>
@@ -295,6 +311,7 @@ export default function HeartsApp({ onHome }) {
               <div className="seatMeta">
                 {inHand && <span className="cardCount">{game.hands[seat].length} cards</span>}
                 <PointsBadge cards={visibleTaken(seat)} />
+                {hasFaceDown(seat) && <FaceDownBadge count={game.leftover.length} />}
                 {phase === "pass" && game.passes[seat] && <span className="passedTick">passed ✓</span>}
               </div>
             </div>
@@ -348,6 +365,7 @@ export default function HeartsApp({ onHome }) {
             <span className="plateName">{names[ME]}</span>
             <span className={`seatScore ${danger(ME) ? "danger" : ""}`}>{game.scores[ME]}</span>
             <PointsBadge cards={visibleTaken(ME)} />
+            {hasFaceDown(ME) && <FaceDownBadge count={game.leftover.length} />}
           </span>
           <span className="prompt">{prompt}</span>
         </div>
