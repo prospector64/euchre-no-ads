@@ -22,7 +22,7 @@ const SETTINGS_KEY = "rummy.settings.v1";
 const SEAT_COLORS = ["#5dd6ff", "#ff8a7a", "#ffd54a", "#b98cff"];
 
 const DEFAULT_SETTINGS = {
-  names: ["Nick", "Collin", "Christian", "Matt"],
+  names: ["Nick", "Jim", "Maddie", "Jenn"],
   rules: DEFAULT_RULES,
   speed: "normal",
   sortBy: "suit",
