@@ -1,6 +1,6 @@
 # Card Night (No Ads)
 
-Euchre, Hearts and Rummy 500 against bots, in the browser. Pick a game from the home screen.
+Euchre, Hearts and Rummy 500 against bots, plus Solitaire, in the browser. Pick a game from the home screen.
 
 ## Files
 
@@ -9,6 +9,7 @@ Euchre, Hearts and Rummy 500 against bots, in the browser. Pick a game from the 
 - `engine.js` / `ai.js` / `EuchreApp.jsx`: Euchre rules, bots and screen.
 - `hearts-engine.js` / `hearts-ai.js` / `HeartsApp.jsx`: Hearts rules, bots and screen.
 - `rummy-engine.js` / `rummy-ai.js` / `RummyApp.jsx`: Rummy 500 rules, bots and screen.
+- `solitaire-engine.js` / `SolitaireApp.jsx`: Klondike solitaire rules and screen.
 
 The bots only use what a person at the table would know: their own cards, what's been played, and who has run out of a suit.
 
@@ -43,3 +44,11 @@ Cloudflare Pages builds with `npm run build` and serves the `dist` folder.
 - **Discard pile:** take as deep as you like, but you must play the bottom card you took that same turn.
 - **You must discard to go out.**
 - **Scoring:** aces 15, 10/J/Q/K 10, 2–9 are 5. You score what you've laid down, minus what's left in your hand. First to 500.
+
+## Solitaire (Klondike)
+
+- Draw 1 (default) or Draw 3, with unlimited passes through the deck.
+- Tap a card to send it to the best spot, or drag it where you want it.
+- Every draw, move and undo counts as a move. A timer runs from your first move.
+- If no useful moves are left, a banner says the deal is stuck and offers Undo or Redeal.
+- Once every card is face up, a Finish button plays the rest up for you.

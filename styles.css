@@ -885,3 +885,104 @@ button:disabled { cursor: default; }
   .rummyTable .plate { font-size: 16px; padding: 6px 12px; }
 }
 .app.rummy { grid-template-rows: auto 1fr auto auto; }
+
+/* =========================================================
+   Solitaire
+   ========================================================= */
+.app.solitaire { display: flex; flex-direction: column; }
+.app.solitaire .solBoard { flex: 1; }
+.solTitle { cursor: default; }
+.solTitle b { color: var(--text); }
+.iconBtn:disabled { opacity: 0.35; }
+
+.stuckBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 122, 122, 0.16);
+  border: 1px solid rgba(255, 122, 122, 0.45);
+  font-size: 14px;
+  animation: rise 0.2s ease-out;
+}
+.stuckBanner.finish { background: rgba(255, 213, 74, 0.12); border-color: rgba(255, 213, 74, 0.45); }
+
+.solBoard {
+  position: relative;
+  min-height: 0;
+  padding: 8px;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 50% 30%, var(--felt-hi), var(--felt) 55%, var(--felt-lo));
+  border: 5px solid var(--rail);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45), var(--shadow);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+  margin-bottom: calc(env(safe-area-inset-bottom) + 4px);
+}
+.solRow { display: flex; align-items: flex-start; justify-content: center; }
+.solSlot {
+  position: relative;
+  flex: none;
+  width: var(--w-sol);
+  aspect-ratio: 5 / 7;
+  padding: 0;
+  border-radius: 8px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.1);
+}
+.solSlot.stock { border-style: solid; cursor: pointer; }
+.recycle { display: grid; place-items: center; height: 100%; font-size: calc(var(--w-sol) * 0.5); color: rgba(255, 255, 255, 0.55); }
+.fSuit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--w-sol) * 0.5);
+  color: rgba(255, 255, 255, 0.18);
+}
+.fSuit.red { color: rgba(255, 140, 140, 0.25); }
+.solWaste { position: relative; flex: none; height: calc(var(--w-sol) * 1.4); }
+.solSpacer { flex: 1; }
+.solTableau {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(7, var(--w-sol));
+  justify-content: center;
+}
+.solCol { position: relative; height: 100%; }
+.emptyCol {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.2);
+  font-weight: 900;
+  font-size: calc(var(--w-sol) * 0.4);
+}
+
+.solCard { position: absolute; left: 0; cursor: grab; touch-action: none; }
+.solCard.ghost { opacity: 0.25; }
+.solCard.shake { animation: shake 0.3s ease; }
+@keyframes shake {
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+.solDrag { position: fixed; z-index: 30; pointer-events: none; width: var(--w-sol); }
+.solDrag .card { box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45); }
+
+/* Solitaire cards: big corner index since most cards are partly covered */
+.card-sol { width: var(--w-sol); --cw: var(--w-sol); border-radius: calc(var(--w-sol) * 0.12); }
+.card-sol .corner.tl { top: 3%; left: 6%; flex-direction: row; align-items: baseline; gap: 1px; }
+.card-sol .cr { font-size: calc(var(--cw) * 0.3); }
+.card-sol .cs { font-size: calc(var(--cw) * 0.27); }
+.card-sol .corner.br { display: none; }
+.card-sol .pip { font-size: calc(var(--cw) * 0.55); top: 18%; }
+.card-sol.back { border-width: 2px; }
