@@ -355,6 +355,7 @@ export default function RummyApp({ onHome }) {
             {row.map((c) => {
               const k = cardKey(c);
               const must = game.mustPlay && sameCard(c, game.mustPlay);
+              const justPicked = game.justDrew?.seat === ME && game.justDrew.cards.some((x) => sameCard(x, c));
               return (
                 <Card
                   key={k}
@@ -362,7 +363,7 @@ export default function RummyApp({ onHome }) {
                   size="lg"
                   onClick={myTurn && phase === "play" ? () => toggle(c) : undefined}
                   selected={selected.includes(k)}
-                  className={must ? "fresh" : ""}
+                  className={must || justPicked ? "fresh" : ""}
                   tag={must ? "play" : null}
                 />
               );

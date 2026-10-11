@@ -986,3 +986,6 @@ button:disabled { cursor: default; }
 .card-sol .corner.br { display: none; }
 .card-sol .pip { font-size: calc(var(--cw) * 0.55); top: 18%; }
 .card-sol.back { border-width: 2px; }
+/* Rummy: gold = just picked up, blue = selected, so the two never get confused */
+.rummy .card.fresh { border: 3px solid var(--gold); box-shadow: 0 0 14px rgba(255, 213, 74, 0.75); }
+.rummy .card.selected { box-shadow: 0 0 0 3px var(--accent), 0 12px 20px rgba(0, 0, 0, 0.4); }

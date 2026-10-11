@@ -213,6 +213,7 @@ export function newGame(rules = DEFAULT_RULES) {
     melds: [],
     meldId: 0,
     mustPlay: null, // bottom card taken from the discard pile this turn
+    justDrew: null, // { seat, cards } picked up this turn, for highlighting
     pickups: Array.from({ length: n }, () => []), // public: cards each seat took from the discard pile
     scores: Array(n).fill(0),
     history: [],
@@ -256,6 +257,7 @@ function deal(prev, rules) {
   s.stock = deck.slice(size * n + 1);
   s.melds = [];
   s.mustPlay = null;
+  s.justDrew = null;
   s.pickups = Array.from({ length: n }, () => []);
   s.result = null;
   s.handNo += 1;
@@ -311,6 +313,7 @@ export function applyAction(state, a) {
       const s = structuredClone(state);
       s.hands[a.seat].push(s.stock.pop());
       s.phase = "play";
+      s.justDrew = { seat: a.seat, cards: [s.hands[a.seat][s.hands[a.seat].length - 1]] };
       addLog(s, `{${a.seat}} draws from the pile`, "draw");
       return s;
     }
@@ -326,6 +329,7 @@ export function applyAction(state, a) {
       s.hands[a.seat].push(...taken);
       s.mustPlay = bottom;
       s.pickups[a.seat].push(...taken);
+      s.justDrew = { seat: a.seat, cards: taken };
       s.phase = "play";
       addLog(s, `{${a.seat}} picks up ${taken.length === 1 ? cardLabel(bottom) : `${taken.length} cards down to the ${cardLabel(bottom)}`}`, "draw");
       return s;
@@ -371,6 +375,7 @@ export function applyAction(state, a) {
       const s = structuredClone(state);
       removeCards(s.hands[a.seat], [a.card]);
       s.discard.push(a.card);
+      s.justDrew = null; // turn over: stop highlighting what was picked up
       if (!s.hands[a.seat].length) {
         addLog(s, `{${a.seat}} discards ${cardLabel(a.card)} and goes out!`, "out");
         scoreHand(s, a.seat);
