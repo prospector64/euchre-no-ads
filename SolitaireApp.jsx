@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
-import { Card, CardBack, Modal, Seg, load, save } from "./ui.jsx";
+import { Card, CardBack, Modal, Seg, load, save, HowToPlay, useGuide } from "./ui.jsx";
+import { GUIDES } from "./guides.js";
 import {
   SUITS,
   applyAction,
@@ -34,6 +35,7 @@ const reducer = (s, a) => (a.type === "load" ? a.state : applyAction(s, a));
 const fmtTime = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 
 export default function SolitaireApp({ onHome }) {
+  const [showGuide, openGuide, closeGuide] = useGuide("solitaire");
   const [settings, setSettings] = useState(loadSettings);
   const [game, dispatch] = useReducer(reducer, undefined, initialGame);
   const [drag, setDrag] = useState(null); // { from, x, y, offX, offY }
@@ -236,6 +238,9 @@ export default function SolitaireApp({ onHome }) {
       <header className="topbar">
         <button className="iconBtn" type="button" onClick={onHome} aria-label="All games">
           ⌂
+        </button>
+        <button className="iconBtn helpBtn" type="button" onClick={openGuide} aria-label="How to play">
+          ?
         </button>
         <button className="iconBtn" type="button" onClick={() => setShowSettings(true)} aria-label="Settings">
           ⚙︎
@@ -467,6 +472,7 @@ export default function SolitaireApp({ onHome }) {
           </div>
         </Modal>
       )}
+      {showGuide && <HowToPlay guide={GUIDES.solitaire} onClose={closeGuide} />}
     </div>
   );
 }

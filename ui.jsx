@@ -120,3 +120,66 @@ export function Seg({ options, value, onChange, disabled = [] }) {
     </div>
   );
 }
+
+/** Renders **bold** segments inside guide text. */
+function richText(text) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") ? <b key={i}>{part.slice(2, -2)}</b> : <React.Fragment key={i}>{part}</React.Fragment>
+  );
+}
+
+/** "How to play" sheet for a game, from guides.js. */
+export function HowToPlay({ guide, onClose }) {
+  const [open, setOpen] = React.useState(0);
+  return (
+    <Modal onClose={onClose} className="sheet guide">
+      <div className="modalHead">
+        <span className="modalTitle">{guide.title}</span>
+        <button className="btn ghost small" type="button" onClick={onClose}>
+          Got it
+        </button>
+      </div>
+      <p className="guideIntro">{richText(guide.intro)}</p>
+      <div className="guideTabs" role="tablist">
+        {guide.sections.map((s, i) => (
+          <button key={s.title} type="button" role="tab" aria-selected={open === i} className={open === i ? "on" : ""} onClick={() => setOpen(i)}>
+            {s.title}
+          </button>
+        ))}
+      </div>
+      <ul className="guideList">
+        {guide.sections[open].items.map((t, i) => (
+          <li key={i}>{richText(t)}</li>
+        ))}
+      </ul>
+      <div className="guideNav">
+        <button className="btn ghost small" type="button" disabled={open === 0} onClick={() => setOpen(open - 1)}>
+          ‹ Back
+        </button>
+        <span className="muted">
+          {open + 1} / {guide.sections.length}
+        </span>
+        {open < guide.sections.length - 1 ? (
+          <button className="btn primary small" type="button" onClick={() => setOpen(open + 1)}>
+            Next ›
+          </button>
+        ) : (
+          <button className="btn primary small" type="button" onClick={onClose}>
+            Let's play
+          </button>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/** Shows the guide automatically the first time someone opens a game. */
+export function useGuide(gameId) {
+  const key = `guide.seen.${gameId}`;
+  const [show, setShow] = React.useState(() => !load(key, false));
+  const close = () => {
+    save(key, true);
+    setShow(false);
+  };
+  return [show, () => setShow(true), close];
+}

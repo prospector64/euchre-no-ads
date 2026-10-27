@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useReducer, useState } from "react";
-import { Card, CardBack, Modal, LogList, SPEEDS, load, save } from "./ui.jsx";
+import { Card, CardBack, Modal, LogList, SPEEDS, load, save, HowToPlay, useGuide } from "./ui.jsx";
+import { GUIDES } from "./guides.js";
 import {
   SUITS,
   SUIT_NAMES,
@@ -98,6 +99,7 @@ function Seat({ seat, pos, game, names }) {
 
 /** ---------- App ---------- **/
 export default function EuchreApp({ onHome }) {
+  const [showGuide, openGuide, closeGuide] = useGuide("euchre");
   const [settings, setSettings] = useState(() => ({ ...DEFAULT_SETTINGS, ...load(SETTINGS_KEY, {}) }));
   const [game, dispatch] = useReducer(reducer, undefined, initialGame);
   const names = settings.names;
@@ -318,6 +320,9 @@ export default function EuchreApp({ onHome }) {
       <header className="topbar">
         <button className="iconBtn" type="button" onClick={onHome} aria-label="All games">
           ⌂
+        </button>
+        <button className="iconBtn helpBtn" type="button" onClick={openGuide} aria-label="How to play">
+          ?
         </button>
         <button className="iconBtn" type="button" onClick={() => setShowSettings(true)} aria-label="Settings">
           ⚙︎
@@ -606,6 +611,7 @@ export default function EuchreApp({ onHome }) {
           </div>
         </Modal>
       )}
+      {showGuide && <HowToPlay guide={GUIDES.euchre} onClose={closeGuide} />}
     </div>
   );
 }

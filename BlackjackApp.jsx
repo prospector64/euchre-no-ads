@@ -1,5 +1,6 @@
 import React, { useEffect, useReducer, useState } from "react";
-import { Card, CardBack, Modal, LogList, Seg, SPEEDS, load, save } from "./ui.jsx";
+import { Card, CardBack, Modal, LogList, Seg, SPEEDS, load, save, HowToPlay, useGuide } from "./ui.jsx";
+import { GUIDES } from "./guides.js";
 import {
   DEFAULT_RULES,
   ME,
@@ -122,6 +123,7 @@ function HandView({ hand, size, active, showTotal }) {
 }
 
 export default function BlackjackApp({ onHome }) {
+  const [showGuide, openGuide, closeGuide] = useGuide("blackjack");
   const [settings, setSettings] = useState(loadSettings);
   const [game, dispatch] = useReducer(reducer, undefined, initialGame);
   const [bet, setBet] = useState(() => {
@@ -245,6 +247,9 @@ export default function BlackjackApp({ onHome }) {
       <header className="topbar">
         <button className="iconBtn" type="button" onClick={onHome} aria-label="All games">
           ⌂
+        </button>
+        <button className="iconBtn helpBtn" type="button" onClick={openGuide} aria-label="How to play">
+          ?
         </button>
         <button className="iconBtn" type="button" onClick={() => setShowSettings(true)} aria-label="Settings">
           ⚙︎
@@ -641,6 +646,7 @@ export default function BlackjackApp({ onHome }) {
           <p className="help">A new table uses these settings and resets everyone's money to {fmt(settings.bankroll)}.</p>
         </Modal>
       )}
+      {showGuide && <HowToPlay guide={GUIDES.blackjack} onClose={closeGuide} />}
     </div>
   );
 }

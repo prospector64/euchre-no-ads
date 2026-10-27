@@ -1229,3 +1229,38 @@ button.chip:disabled { opacity: 0.35; }
   .arcSmall { display: none; }
   .bjDealerLabel { display: none; }
 }
+
+/* =========================================================
+   How-to-play guides
+   ========================================================= */
+.helpBtn { font-weight: 900; font-size: 18px; }
+.modal.guide { display: flex; flex-direction: column; }
+.guideIntro { margin: 0 0 12px; font-size: 15px; line-height: 1.45; color: rgba(255, 255, 255, 0.86); }
+.guideTabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  scrollbar-width: none;
+}
+.guideTabs::-webkit-scrollbar { display: none; }
+.guideTabs button {
+  flex: none;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.guideTabs button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.guideList { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 10px; font-size: 15px; line-height: 1.45; min-height: 180px; }
+.guideList b { color: var(--gold); }
+.guideNav { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--stroke); }
+@media (max-width: 420px) {
+  .topbar { gap: 6px; }
+  .topbar .iconBtn { width: 36px; height: 36px; font-size: 16px; }
+}

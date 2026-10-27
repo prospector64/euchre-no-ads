@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useReducer, useState } from "react";
-import { Card, CardBack, Modal, LogList, Seg, SPEEDS, SUIT_NAMES, load, save } from "./ui.jsx";
+import { Card, CardBack, Modal, LogList, Seg, SPEEDS, SUIT_NAMES, load, save, HowToPlay, useGuide } from "./ui.jsx";
+import { GUIDES } from "./guides.js";
 import {
   DEFAULT_RULES,
   DIR_LABELS,
@@ -101,6 +102,7 @@ function FaceDownBadge({ count }) {
 }
 
 export default function HeartsApp({ onHome }) {
+  const [showGuide, openGuide, closeGuide] = useGuide("hearts");
   const [settings, setSettings] = useState(loadSettings);
   const [game, dispatch] = useReducer(applyAction, undefined, initialGame);
   const [picked, setPicked] = useState([]);
@@ -259,6 +261,9 @@ export default function HeartsApp({ onHome }) {
       <header className="topbar">
         <button className="iconBtn" type="button" onClick={onHome} aria-label="All games">
           ⌂
+        </button>
+        <button className="iconBtn helpBtn" type="button" onClick={openGuide} aria-label="How to play">
+          ?
         </button>
         <button className="iconBtn" type="button" onClick={() => setShowSettings(true)} aria-label="Settings">
           ⚙︎
@@ -674,6 +679,7 @@ export default function HeartsApp({ onHome }) {
           </div>
         </Modal>
       )}
+      {showGuide && <HowToPlay guide={GUIDES.hearts} onClose={closeGuide} />}
     </div>
   );
 }

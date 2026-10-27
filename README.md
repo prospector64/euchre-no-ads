@@ -5,7 +5,8 @@ Euchre, Hearts, Rummy 500 and Blackjack against bots, plus Solitaire, in the bro
 ## Files
 
 - `App.jsx`: home screen and switching between games.
-- `ui.jsx`: shared pieces (cards, pop-ups, saving).
+- `ui.jsx`: shared pieces (cards, pop-ups, saving, the how-to-play sheet).
+- `guides.js`: the how-to-play guide text for every game (opens with the ? button, and automatically on a first visit).
 - `engine.js` / `ai.js` / `EuchreApp.jsx`: Euchre rules, bots and screen.
 - `hearts-engine.js` / `hearts-ai.js` / `HeartsApp.jsx`: Hearts rules, bots and screen.
 - `rummy-engine.js` / `rummy-ai.js` / `RummyApp.jsx`: Rummy 500 rules, bots and screen.

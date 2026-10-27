@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useReducer, useState } from "react";
-import { Card, CardBack, Modal, LogList, Seg, SPEEDS, load, save } from "./ui.jsx";
+import { Card, CardBack, Modal, LogList, Seg, SPEEDS, load, save, HowToPlay, useGuide } from "./ui.jsx";
+import { GUIDES } from "./guides.js";
 import {
   DEFAULT_RULES,
   applyAction,
@@ -51,6 +52,7 @@ function useWidth() {
 }
 
 export default function RummyApp({ onHome }) {
+  const [showGuide, openGuide, closeGuide] = useGuide("rummy");
   const [settings, setSettings] = useState(loadSettings);
   const [game, dispatch] = useReducer(applyAction, undefined, initialGame);
   const [selected, setSelected] = useState([]);
@@ -243,6 +245,9 @@ export default function RummyApp({ onHome }) {
       <header className="topbar">
         <button className="iconBtn" type="button" onClick={onHome} aria-label="All games">
           ⌂
+        </button>
+        <button className="iconBtn helpBtn" type="button" onClick={openGuide} aria-label="How to play">
+          ?
         </button>
         <button className="iconBtn" type="button" onClick={() => setShowSettings(true)} aria-label="Settings">
           ⚙︎
@@ -583,6 +588,7 @@ export default function RummyApp({ onHome }) {
           </div>
         </Modal>
       )}
+      {showGuide && <HowToPlay guide={GUIDES.rummy} onClose={closeGuide} />}
     </div>
   );
 }
