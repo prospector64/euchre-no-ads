@@ -3,6 +3,7 @@ import EuchreApp from "./EuchreApp.jsx";
 import HeartsApp from "./HeartsApp.jsx";
 import RummyApp from "./RummyApp.jsx";
 import SolitaireApp from "./SolitaireApp.jsx";
+import BlackjackApp from "./BlackjackApp.jsx";
 import { Card, load } from "./ui.jsx";
 
 const GAMES = [
@@ -34,6 +35,14 @@ const GAMES = [
     cards: [{ r: "K", s: "♠" }, { r: "Q", s: "♥" }, { r: "J", s: "♣" }],
     saveKey: "solitaire.game.v1",
     active: (g) => g.moves > 0 && !g.won,
+  },
+  {
+    id: "blackjack",
+    name: "Blackjack",
+    blurb: "Casino 21 with up to 4 friends at the table. Start with $50 and see how far it goes.",
+    cards: [{ r: "A", s: "♠" }, { r: "K", s: "♥" }, { r: "J", s: "♦" }],
+    saveKey: "blackjack.game.v1",
+    active: (g) => g.roundNo > 0,
   },
 ];
 
@@ -83,5 +92,6 @@ export default function App() {
   if (route === "hearts") return <HeartsApp onHome={() => go("")} />;
   if (route === "rummy") return <RummyApp onHome={() => go("")} />;
   if (route === "solitaire") return <SolitaireApp onHome={() => go("")} />;
+  if (route === "blackjack") return <BlackjackApp onHome={() => go("")} />;
   return <Home onPick={go} />;
 }

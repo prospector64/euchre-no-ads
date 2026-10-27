@@ -1,6 +1,6 @@
 # Card Night (No Ads)
 
-Euchre, Hearts and Rummy 500 against bots, plus Solitaire, in the browser. Pick a game from the home screen.
+Euchre, Hearts, Rummy 500 and Blackjack against bots, plus Solitaire, in the browser. Pick a game from the home screen.
 
 ## Files
 
@@ -10,6 +10,7 @@ Euchre, Hearts and Rummy 500 against bots, plus Solitaire, in the browser. Pick 
 - `hearts-engine.js` / `hearts-ai.js` / `HeartsApp.jsx`: Hearts rules, bots and screen.
 - `rummy-engine.js` / `rummy-ai.js` / `RummyApp.jsx`: Rummy 500 rules, bots and screen.
 - `solitaire-engine.js` / `SolitaireApp.jsx`: Klondike solitaire rules and screen.
+- `blackjack-engine.js` / `blackjack-ai.js` / `BlackjackApp.jsx`: Blackjack rules, the other players, and the table.
 
 The bots only use what a person at the table would know: their own cards, what's been played, and who has run out of a suit.
 
@@ -52,3 +53,11 @@ Cloudflare Pages builds with `npm run build` and serves the `dist` folder.
 - Every draw, move and undo counts as a move. A timer runs from your first move.
 - If no useful moves are left, a banner says the deal is stuck and offers Undo or Redeal.
 - Once every card is face up, a Finish button plays the rest up for you.
+
+## Blackjack
+
+- 1–5 players (3 by default). You always sit in the middle, across from the dealer; the others are Zach, Josh, Collin and Syd.
+- Start with $50 (adjustable). $1 minimum bet, chips of $1, $5, $25 and $100. Go broke and you can buy back in or start a new table.
+- Standard Vegas rules by default: 6-deck shoe with a cut card, blackjack pays 3:2, dealer stands on soft 17, double on any first two cards and after splits, split up to 4 hands (split aces get one card each), insurance, and late surrender. All adjustable in Settings.
+- The other players mostly play basic strategy with the occasional human mistake, each with their own betting style, and leave when they go broke.
+- Stats, and an optional Hi-Lo card count display.

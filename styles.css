@@ -989,3 +989,243 @@ button:disabled { cursor: default; }
 /* Rummy: gold = just picked up, blue = selected, so the two never get confused */
 .rummy .card.fresh { border: 3px solid var(--gold); box-shadow: 0 0 14px rgba(255, 213, 74, 0.75); }
 .rummy .card.selected { box-shadow: 0 0 0 3px var(--accent), 0 12px 20px rgba(0, 0, 0, 0.4); }
+
+/* =========================================================
+   Blackjack
+   ========================================================= */
+.app.blackjack { display: flex; flex-direction: column; }
+.bankroll { color: var(--good); }
+
+.bjTable {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: 26px 26px 50% 50% / 26px 26px 24% 24%;
+  background:
+    radial-gradient(ellipse at 50% 15%, rgba(255, 255, 255, 0.07), transparent 55%),
+    radial-gradient(ellipse at 50% 40%, var(--felt-hi), var(--felt) 55%, var(--felt-lo));
+  border: 8px solid var(--rail);
+  box-shadow: inset 0 0 0 2px rgba(255, 213, 74, 0.35), inset 0 0 50px rgba(0, 0, 0, 0.5), var(--shadow);
+  overflow: hidden;
+  --cwl: var(--w-sm);
+}
+
+/* Shoe */
+.bjShoe { position: absolute; top: 10px; right: 12px; display: flex; align-items: flex-end; gap: 5px; z-index: 2; }
+.bjShoe .card { transform: rotate(8deg); }
+.shoeBar {
+  position: relative;
+  width: 7px;
+  height: calc(var(--w-sm) * 1.4);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+.shoeFill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(var(--accent), #2a8db0); }
+.cutMark { position: absolute; left: -2px; right: -2px; height: 2px; background: var(--bad); }
+.shuffleTag {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--gold);
+}
+.bjCount {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 2;
+  display: grid;
+  gap: 1px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dealer */
+.bjDealer {
+  position: absolute;
+  top: 2%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.bjDealerLabel { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; color: rgba(255, 255, 255, 0.5); }
+.dealerCards { --cwl: var(--w-md); min-height: calc(var(--w-md) * 1.4); }
+
+/* Cards in a hand: fanned like a real deal */
+.bjCards { display: flex; justify-content: center; }
+.bjCard { animation: dealIn 0.32s ease-out both; }
+.bjCard + .bjCard { margin-left: calc(var(--cwl) * -0.6); }
+.bjCard:nth-child(n) { transform: translateY(calc(var(--i) * -3px)); }
+@keyframes dealIn {
+  from { opacity: 0; transform: translate(140px, -180px) rotate(18deg); }
+}
+.bjTotal {
+  margin-top: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bjTotal.bust { background: var(--bad); color: #300; }
+
+/* Felt printing */
+.bjArc {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 24%;
+  width: 92%;
+  pointer-events: none;
+}
+.arcBig { fill: rgba(255, 213, 74, 0.75); font-size: 17px; font-weight: 900; letter-spacing: 0.12em; }
+.arcSmall { fill: rgba(255, 255, 255, 0.45); font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; }
+
+/* Seats */
+.bjSeat {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  max-width: 34%;
+}
+.bjSeat.mine { z-index: 3; --cwl: var(--w-lg); --w-lg: clamp(54px, 16vw, 92px); }
+.bjSeat.out { opacity: 0.4; }
+.bjSeat .plate { padding: 3px 8px; font-size: 12px; gap: 5px; }
+.bjSeat.mine .plate { font-size: 14px; padding: 5px 10px; border-color: rgba(93, 214, 255, 0.4); }
+.bjSeat.active .plate {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(93, 214, 255, 0.25), 0 0 18px rgba(93, 214, 255, 0.45);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.bjHands { display: flex; gap: 6px; align-items: flex-end; min-height: calc(var(--cwl) * 1.4); }
+.bjHand { position: relative; display: flex; flex-direction: column; align-items: center; border-radius: 10px; padding: 2px; }
+.bjHand.active { box-shadow: 0 0 0 2px var(--accent); }
+.bjResult {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-6deg);
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  animation: pop 0.25s ease-out;
+  z-index: 2;
+}
+.bjResult.good { background: var(--good); color: #032b1a; }
+.bjResult.bad { background: var(--bad); color: #300; }
+.bjResult.meh { background: #c8ccd6; color: #1a1d24; }
+.bjTag {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--gold);
+  color: #2b2200;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+/* Betting circle with chips */
+.betSpot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 44px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+}
+.bjSeat.mine .betSpot { border-color: rgba(255, 213, 74, 0.5); }
+.chipPile { position: relative; width: 22px; height: 28px; }
+.betAmt { font-size: 12px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.insTag { position: absolute; top: -10px; right: -12px; font-size: 9px; font-weight: 900; color: var(--gold); white-space: nowrap; }
+.netTag { font-size: 12px; font-weight: 900; animation: pop 0.25s ease-out; }
+.netTag.good { color: var(--good); }
+.netTag.bad { color: var(--bad); }
+
+/* Chips */
+.chip {
+  display: inline-grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border-radius: 50%;
+  border: 4px dashed rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  box-shadow: inset 0 0 0 4px var(--chip), inset 0 0 0 7px rgba(255, 255, 255, 0.25), 0 5px 12px rgba(0, 0, 0, 0.45);
+  background: var(--chip);
+  transition: transform 0.1s;
+}
+button.chip:active:not(:disabled) { transform: translateY(-3px) scale(0.95); }
+button.chip:disabled { opacity: 0.35; }
+.chip1 { --chip: #f2f2f2; color: #1b3d8f; border-color: #1b3d8f; }
+.chip5 { --chip: #c62828; }
+.chip25 { --chip: #1e8e3e; }
+.chip100 { --chip: #1b1b1b; border-color: var(--gold); color: var(--gold); }
+.chip.mini {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--k) * 3px);
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+  box-shadow: inset 0 0 0 2px var(--chip), 0 2px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Controls */
+.bjPanel { gap: 8px; padding-bottom: calc(env(safe-area-inset-bottom) + 6px); }
+.bjStatus { min-height: 20px; font-size: 14px; font-weight: 700; text-align: center; }
+.chipTray { display: flex; justify-content: center; gap: 12px; }
+.bjBetRow { justify-content: center; }
+.bjDeal { min-width: 120px; }
+.bjActions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.bjActions .btn { padding: 10px 4px; font-size: 14px; }
+.bjActions .stand { background: #e9eef7; color: #0b1020; }
+
+/* Stats + settings */
+.statGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.statTile { display: grid; gap: 2px; padding: 10px; border-radius: 12px; background: var(--panel); text-align: center; }
+.statVal { font-size: 20px; font-weight: 900; }
+.statKey { font-size: 11px; color: var(--muted); font-weight: 700; }
+.ruleRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
+.ruleRow .seg { flex: 0 1 230px; }
+
+@media (min-width: 1000px) and (min-height: 760px) {
+  .bjTable { --w-sm: 62px; --w-md: 80px; }
+  .bjSeat .plate { font-size: 15px; }
+  .arcBig { font-size: 15px; }
+}
+/* Short windows (landscape phones, small panes): tighten the blackjack table */
+@media (max-height: 560px) {
+  .bjTable { --seatShift: 7%; }
+  .bjDealer { --w-md: 38px; }
+  .bjSeat.mine { --w-lg: 48px; }
+  .bjArc { top: 18%; left: 22%; right: 22%; width: 56%; }
+  .arcSmall { display: none; }
+  .bjDealerLabel { display: none; }
+}
