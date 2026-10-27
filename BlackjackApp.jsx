@@ -239,7 +239,6 @@ export default function BlackjackApp({ onHome }) {
   else if (phase === "dealer") status = "Dealer's turn…";
 
   const tableText = `BLACKJACK PAYS ${rules.bjPays === 1.5 ? "3 TO 2" : "6 TO 5"}`;
-  const subText = `Dealer ${rules.hitSoft17 ? "hits" : "stands on"} soft 17${rules.insurance ? " · Insurance pays 2 to 1" : ""}`;
   const st = settings.stats;
 
   return (
@@ -275,13 +274,21 @@ export default function BlackjackApp({ onHome }) {
           </div>
           {game.shuffleNext && <div className="shuffleTag">Shuffle next</div>}
         </div>
-        {settings.showCount && (
+        {/* Table rules, small in the corner */}
+        <div className="bjCorner">
+          <div className="bjPlaque">
+            <b>{tableText}</b>
+            <span>Dealer {rules.hitSoft17 ? "hits" : "stands on"} soft 17</span>
+            {rules.insurance && <span>Insurance pays 2 to 1</span>}
+          </div>
+          {settings.showCount && (
           <div className="bjCount">
             <span>RC {game.runningCount > 0 ? "+" : ""}{game.runningCount}</span>
             <span>TC {tc > 0 ? "+" : ""}{tc.toFixed(1)}</span>
             <span className="muted">{decksLeft(game).toFixed(1)} decks</span>
           </div>
         )}
+        </div>
 
         {/* Dealer */}
         <div className="bjDealer">
@@ -299,24 +306,6 @@ export default function BlackjackApp({ onHome }) {
             </div>
           )}
         </div>
-
-        {/* Table printing */}
-        <svg className="bjArc" viewBox="0 0 400 120" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <defs>
-            <path id="bjArcPath" d="M 30 20 Q 200 120 370 20" />
-            <path id="bjArcPath2" d="M 70 42 Q 200 128 330 42" />
-          </defs>
-          <text className="arcBig">
-            <textPath href="#bjArcPath" startOffset="50%" textAnchor="middle">
-              {tableText}
-            </textPath>
-          </text>
-          <text className="arcSmall">
-            <textPath href="#bjArcPath2" startOffset="50%" textAnchor="middle">
-              {subText}
-            </textPath>
-          </text>
-        </svg>
 
         {/* Seats */}
         {game.players.map((pl, i) => {
